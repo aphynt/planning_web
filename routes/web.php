@@ -33,16 +33,24 @@ Route::any('/fuel/{path?}', function (Request $request, $path = null) {
         $targetUrl .= '/' . $path;
     }
 
-    $response = Http::send(
+    $headers = [];
+
+    // ✅ Forward Authorization jika ada
+    if ($request->hasHeader('Authorization')) {
+        $headers['Authorization'] = $request->header('Authorization');
+    }
+
+    // Optional tapi aman
+    if ($request->hasHeader('Content-Type')) {
+        $headers['Content-Type'] = $request->header('Content-Type');
+    }
+
+    $response = Http::withHeaders($headers)->send(
         $request->method(),
         $targetUrl,
         [
             'query' => $request->query(),
             'body'  => $request->getContent(),
-            'headers' => [
-                'Accept'       => $request->header('Accept'),
-                'Content-Type' => $request->header('Content-Type'),
-            ],
         ]
     );
 
