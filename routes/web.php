@@ -13,6 +13,7 @@ use App\Http\Controllers\SOPPlanningController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Http;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -23,6 +24,28 @@ Route::post('/login/post', [AuthController::class, 'loginPost'])->name('login.po
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
+
+Route::any('/fuel/{path?}', function (Request $request, $path = '') {
+    $targetUrl = 'http://10.10.2.5:9071/' . $path;
+
+    $response = Http::withHeaders(
+        collect($request->headers->all())
+            ->map(fn ($v) => $v[0])
+            ->toArray()
+    )->send(
+        $request->method(),
+        $targetUrl,
+        [
+            'query' => $request->query(),
+            'body'  => $request->getContent(),
+        ]
+    );
+
+    return response(
+        $response->body(),
+        $response->status()
+    )->withHeaders($response->headers());
+})->where('path', '.*');
 
 //Middleware
 Route::group(['middleware' => ['auth']], function(){
