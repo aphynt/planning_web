@@ -26,26 +26,30 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
 
-Route::any('/fuel/{path?}', function (Request $request, $path = '') {
-    $targetUrl = 'http://10.10.2.5:9071/' . $path;
+Route::any('/fuel/{path?}', function (Request $request, $path = null) {
 
-    $response = Http::withHeaders(
-        collect($request->headers->all())
-            ->map(fn ($v) => $v[0])
-            ->toArray()
-    )->send(
+    $targetUrl = 'http://10.10.2.5:9071';
+    if ($path) {
+        $targetUrl .= '/' . $path;
+    }
+
+    $response = Http::send(
         $request->method(),
         $targetUrl,
         [
             'query' => $request->query(),
             'body'  => $request->getContent(),
+            'headers' => [
+                'Accept'       => $request->header('Accept'),
+                'Content-Type' => $request->header('Content-Type'),
+            ],
         ]
     );
 
-    return response(
-        $response->body(),
-        $response->status()
-    )->withHeaders($response->headers());
+    return response($response->body(), $response->status())
+        ->withHeaders([
+            'Content-Type' => $response->header('Content-Type'),
+        ]);
 })->where('path', '.*');
 
 //Middleware
