@@ -25,42 +25,42 @@ Route::post('/login/post', [AuthController::class, 'loginPost'])->name('login.po
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
-Route::any('/fuel/{path?}', function (Request $request, $path = null) {
+// Route::any('/fuel/{path?}', function (Request $request, $path = null) {
 
-    // DEFAULT ke BaseURI EpigoniRDB
-    $base = 'http://10.10.2.5:9071/EpigoniRDB';
+//     // DEFAULT ke BaseURI EpigoniRDB
+//     $base = 'http://10.10.2.5:9071/EpigoniRDB';
 
-    if ($path) {
-        $path = ltrim($path, '/');
-        $targetUrl = $base . '/' . $path;
-    } else {
-        $targetUrl = $base;
-    }
+//     if ($path) {
+//         $path = ltrim($path, '/');
+//         $targetUrl = $base . '/' . $path;
+//     } else {
+//         $targetUrl = $base;
+//     }
 
-    $headers = [];
+//     $headers = [];
 
-    if ($request->hasHeader('Authorization')) {
-        $headers['Authorization'] = $request->header('Authorization');
-    }
+//     if ($request->hasHeader('Authorization')) {
+//         $headers['Authorization'] = $request->header('Authorization');
+//     }
 
-    if ($request->hasHeader('Content-Type')) {
-        $headers['Content-Type'] = $request->header('Content-Type');
-    }
+//     if ($request->hasHeader('Content-Type')) {
+//         $headers['Content-Type'] = $request->header('Content-Type');
+//     }
 
-    $response = Http::withHeaders($headers)->send(
-        $request->method(),
-        $targetUrl,
-        [
-            'query' => $request->query(),
-            'body'  => $request->getContent(),
-        ]
-    );
+//     $response = Http::withHeaders($headers)->send(
+//         $request->method(),
+//         $targetUrl,
+//         [
+//             'query' => $request->query(),
+//             'body'  => $request->getContent(),
+//         ]
+//     );
 
-    return response($response->body(), $response->status())
-        ->withHeaders([
-            'Content-Type' => $response->header('Content-Type'),
-        ]);
-})->where('path', '.*');
+//     return response($response->body(), $response->status())
+//         ->withHeaders([
+//             'Content-Type' => $response->header('Content-Type'),
+//         ]);
+// })->where('path', '.*');
 
 //Middleware
 Route::group(['middleware' => ['auth']], function(){
