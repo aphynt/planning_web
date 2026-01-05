@@ -25,22 +25,24 @@ Route::post('/login/post', [AuthController::class, 'loginPost'])->name('login.po
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
-
 Route::any('/fuel/{path?}', function (Request $request, $path = null) {
 
-    $targetUrl = 'http://10.10.2.5:9071';
+    // DEFAULT ke BaseURI EpigoniRDB
+    $base = 'http://10.10.2.5:9071/EpigoniRDB';
+
     if ($path) {
-        $targetUrl .= '/' . $path;
+        $path = ltrim($path, '/');
+        $targetUrl = $base . '/' . $path;
+    } else {
+        $targetUrl = $base;
     }
 
     $headers = [];
 
-    // ✅ Forward Authorization jika ada
     if ($request->hasHeader('Authorization')) {
         $headers['Authorization'] = $request->header('Authorization');
     }
 
-    // Optional tapi aman
     if ($request->hasHeader('Content-Type')) {
         $headers['Content-Type'] = $request->header('Content-Type');
     }
