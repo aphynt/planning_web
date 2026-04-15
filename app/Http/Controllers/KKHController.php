@@ -185,6 +185,7 @@ class KKHController extends Controller
             ->where('id', $rowID)
             ->update([
                 'ferivikasi_pengawas' => true,
+                'fit_or' => true,
                 'nik_pengawas' => Auth::user()->nik,
             ]);
 
