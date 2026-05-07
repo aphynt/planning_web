@@ -319,6 +319,10 @@
             <td class="noborder nobg" style="text-align: center">@if ($fuelStation->VERIFIED_DIKETAHUI != null)<img src="{!! $fuelStation->VERIFIED_DIKETAHUI !!}" style="max-width: 70px;">@endif</td>
         </tr>
         <tr>
+            <td class="noborder">{!! Carbon::parse($fuelStation->VERIFIED_DATETIME_PENGAWAS)->locale('id')->isoFormat('dddd, D MMMM YYYY HH:mm') !!}</td>
+            <td class="noborder nobg" style="text-align: center">{!! Carbon::parse($fuelStation->VERIFIED_DATETIME_DIKETAHUI)->locale('id')->isoFormat('dddd, D MMMM YYYY HH:mm') !!}</td>
+        </tr>
+        <tr>
             <td class="noborder">{!! $fuelStation->NAMA_PENGAWAS !!}</td>
             <td class="noborder nobg" style="text-align: center">{!! $fuelStation->NAMA_DIKETAHUI !!}</td>
         </tr>

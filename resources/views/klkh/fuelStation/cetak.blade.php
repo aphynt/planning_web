@@ -315,6 +315,10 @@
             <td class="noborder nobg" style="text-align: center">@if ($fuelStation->VERIFIED_DIKETAHUI != null)<img src="{!! $fuelStation->VERIFIED_DIKETAHUI !!}" style="max-width: 70px;">@endif</td>
         </tr>
         <tr>
+            <td class="noborder nobg" style="text-align: center">{{ $fuelStation->VERIFIED_DATETIME_PENGAWAS != null ? date('d-m-Y H:i', strtotime($fuelStation->VERIFIED_DATETIME_PENGAWAS)) : '' }}</td>
+            <td class="noborder nobg" style="text-align: center">{{ $fuelStation->VERIFIED_DATETIME_DIKETAHUI != null ? date('d-m-Y H:i', strtotime($fuelStation->VERIFIED_DATETIME_DIKETAHUI)) : '' }}</td>
+        </tr>
+        <tr>
             <td class="noborder">{!! $fuelStation->NAMA_PENGAWAS !!}</td>
             <td class="noborder nobg" style="text-align: center">{!! $fuelStation->NAMA_DIKETAHUI !!}</td>
         </tr>
@@ -330,6 +334,7 @@
                     : '' !!}
             </td>
         </tr>
+
     </table>
 </body>
 <script>

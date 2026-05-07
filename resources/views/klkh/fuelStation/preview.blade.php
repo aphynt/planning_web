@@ -322,6 +322,8 @@
                                             : {{ $fuelStation->CATATAN_VERIFIED_PENGAWAS }}
                                         </p>
                                     @endif
+
+                                    <p>{{ $fuelStation->VERIFIED_DATETIME_PENGAWAS != null ? date('d-m-Y H:i', strtotime($fuelStation->VERIFIED_DATETIME_PENGAWAS)) : '' }}</p>
                                 </div>
                             </div>
                             <div class="col-sm-4"></div>
@@ -343,6 +345,7 @@
                                             : {{ $fuelStation->CATATAN_VERIFIED_DIKETAHUI }}
                                         </p>
                                     @endif
+                                    <p>{{ $fuelStation->VERIFIED_DATETIME_DIKETAHUI != null ? date('d-m-Y H:i', strtotime($fuelStation->VERIFIED_DATETIME_DIKETAHUI)) : '' }}</p>
                                 </div>
                             </div>
                             <div class="card-body p-3">

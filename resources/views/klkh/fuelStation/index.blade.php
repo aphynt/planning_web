@@ -57,18 +57,20 @@
                             <tr>
                                 <th rowspan="2">No</th>
                                 <th rowspan="2">Tgl Pembuatan</th>
-                                <th colspan="2">PIC</th>
+                                <th colspan="3">PIC</th>
                                 <th rowspan="2">PIT</th>
                                 <th rowspan="2">Shift</th>
                                 <th rowspan="2">Waktu</th>
-                                <th colspan="2">Diketahui</th>
+                                <th colspan="3">Diketahui</th>
                                 <th rowspan="2">Aksi</th>
                             </tr>
                             <tr>
                                 <th>NIK</th>
                                 <th>Nama</th>
+                                <th>Tanggal Verifikasi</th>
                                 <th>NIK</th>
                                 <th>Nama</th>
+                                <th>Tanggal Verifikasi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -78,6 +80,7 @@
                                 <td>{{ date('d-m-Y H:i', strtotime($item->TANGGAL_PEMBUATAN)) }}</td>
                                 <td>{{ $item->NIK_PIC }}</td>
                                 <td>{{ $item->NAMA_PIC }}</td>
+                                <td>{{ $item->VERIFIED_DATETIME_PENGAWAS != null ? date('d-m-Y H:i', strtotime($item->VERIFIED_DATETIME_PENGAWAS)) : '' }}</td>
                                 <td>{{ $item->PIT }}</td>
                                 <td>{{ $item->SHIFT }}</td>
                                 <td>{{ date('d-m-Y', strtotime($item->DATE)) }}
@@ -90,6 +93,7 @@
                                         <span class="badge bg-danger">B</span>
                                     @endif
                                 </td>
+                                <td>{{ $item->VERIFIED_DATETIME_DIKETAHUI != null ? date('d-m-Y H:i', strtotime($item->VERIFIED_DATETIME_DIKETAHUI)) : '' }}</td>
                                 <td>
                                     <a href="{{ route('klkh.fuelStation.preview', $item->UUID) }}"
                                         class="btn btn-sm btn-info"><i class="bx bx-show"></i>
