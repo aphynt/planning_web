@@ -28,6 +28,8 @@
 
      <!-- App css (Require in all Page) -->
      <link href="{{ asset('app') }}/assets/css/app.min.css" rel="stylesheet" type="text/css" />
+     <link href="{{ asset('app') }}/assets/css/custom.css" rel="stylesheet" type="text/css" />
+     <link rel="stylesheet" href="{{ asset('app') }}/assets/css/fonts.css">
 
      <!-- Theme Config js (Require in all Page) -->
      <script src="{{ asset('app') }}/assets/js/config.min.js"></script>
@@ -47,6 +49,40 @@
         .shake-ikon {
             display: inline-block;
             animation: shake 0.8s infinite;
+        }
+
+        .table-wrapper {
+            position: relative;
+        }
+
+
+        #loadingOverlay {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+            justify-content: center;
+            align-items: center;
+
+            background: rgba(255,255,255,.6);
+            backdrop-filter: blur(2px);
+
+            z-index: 100;
+            border-radius: 8px;
+        }
+
+        .loading-box {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            text-align: center;
+
+            box-shadow: 0 8px 20px rgba(0,0,0,.15);
+        }
+
+        div.dataTables_processing,
+        div.dt-processing{
+            display:none !important;
         }
     </style>
 

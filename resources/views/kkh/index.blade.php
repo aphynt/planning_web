@@ -56,35 +56,51 @@
 
         <div class="card">
             <div class="card-body">
+                <div class="table-wrapper">
 
-                <div class="table-responsive">
-                    <table id="dataKKH" class="table table-striped table-hover table-bordered nowrap">
-                        <thead>
-                            <tr>
-                                        <th rowspan="2">Hari/Tanggal</th>
-                                        <th rowspan="2">Jam Pulang</th>
-                                        <th colspan="2">Pengisi</th>
-                                        <th rowspan="2">Shift</th>
-                                        <th colspan="3">Jam Tidur</th>
-                                        <th rowspan="2">Jam Berangkat</th>
-                                        <th rowspan="2">Fit Bekerja</th>
-                                        <th rowspan="2">Keluhan</th>
-                                        <th rowspan="2">Masalah Pribadi</th>
-                                        <th colspan="2">Verifikasi Pengawas</th>
-                                        <th rowspan="2">Aksi</th>
-                                    </tr>
-                                    <tr>
-                                        <th>NIK</th>
-                                        <th>Nama</th>
-                                        <th>Mulai</th>
-                                        <th>Bangun</th>
-                                        <th>Total</th>
-                                        <th>NIK</th>
-                                        <th>Nama</th>
-                                    </tr>
-                        </thead>
-                        <tbody id="tableBody"></tbody>
-                    </table>
+                    <div id="loadingOverlay">
+                        <div class="loading-box">
+                            <div class="spinner-border text-primary"></div>
+
+                            <h6 class="mt-3 mb-1">
+                                Memuat Data...
+                            </h6>
+
+                            <small class="text-muted">
+                                Mohon tunggu sebentar
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table id="dataKKH" class="table table-striped table-hover table-bordered nowrap">
+                            <thead>
+                                <tr>
+                                            <th rowspan="2">Hari/Tanggal</th>
+                                            <th rowspan="2">Jam Pulang</th>
+                                            <th colspan="2">Pengisi</th>
+                                            <th rowspan="2">Shift</th>
+                                            <th colspan="3">Jam Tidur</th>
+                                            <th rowspan="2">Jam Berangkat</th>
+                                            <th rowspan="2">Fit Bekerja</th>
+                                            <th rowspan="2">Keluhan</th>
+                                            <th rowspan="2">Masalah Pribadi</th>
+                                            <th colspan="2">Verifikasi Pengawas</th>
+                                            <th rowspan="2">Aksi</th>
+                                        </tr>
+                                        <tr>
+                                            <th>NIK</th>
+                                            <th>Nama</th>
+                                            <th>Mulai</th>
+                                            <th>Bangun</th>
+                                            <th>Total</th>
+                                            <th>NIK</th>
+                                            <th>Nama</th>
+                                        </tr>
+                            </thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -263,9 +279,9 @@
                     render: function(data, type, row) {
 
                         if (data == 0 || data === null || data === '') {
-                            return '<span style="color:red;">TIDAK</span>';
+                            return '<span style="color:red;">Perlu Verifikasi</span>';
                         }
-                        return '<span style="color:green;">YA</span>';
+                        return '<span style="color:green;">Ya</span>';
                     }
                 },
                 { data: 'KELUHAN' },
@@ -346,6 +362,16 @@
             "order": [[0, "asc"]],
             "pageLength": 25,
             "lengthMenu": [10, 15, 25, 50],
+        });
+
+        table.on('processing.dt', function (e, settings, processing) {
+
+            if (processing) {
+                $('#loadingOverlay').css('display', 'flex');
+            } else {
+                $('#loadingOverlay').hide();
+            }
+
         });
 
         $('#cariKKH').click(function() {

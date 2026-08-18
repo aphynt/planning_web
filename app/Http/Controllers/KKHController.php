@@ -35,8 +35,36 @@ class KKHController extends Controller
         $offset = $request->input('start', 0);   // Offset
         $length = $request->input('length', 10); // Default 10 items
         $draw = $request->input('draw');
+        $tanggalInput = $request->input('tanggalKKH');
+
+        $startDate = Carbon::today()->toDateString();
+        $endDate   = Carbon::today()->toDateString();
+
+        if (!empty($tanggalInput)) {
+
+            if (str_contains($tanggalInput, 'to')) {
+
+                [$startDate, $endDate] = array_map('trim', explode('to', $tanggalInput));
+
+            } else {
+
+                $startDate = trim($tanggalInput);
+                $endDate   = $startDate;
+
+            }
+
+        }
+
+        $latestIds = DB::connection('kkh')
+        ->table('db_payroll.dbo.web_kkh')
+        ->whereBetween('tgl', [$startDate, $endDate])
+        ->groupBy('tgl', 'nik')
+        ->selectRaw('tgl, nik, MAX(id) as id');
 
         $kkh = DB::connection('kkh')->table('db_payroll.dbo.web_kkh as kkh')
+            ->joinSub($latestIds, 'latest', function ($join) {
+                $join->on('kkh.id', '=', 'latest.id');
+            })
             ->leftJoin('db_payroll.dbo.tbl_data_hr as hr', 'kkh.nik', '=', 'hr.nik')
             ->leftJoin('db_payroll.dbo.tbl_data_hr as hr2', 'kkh.nik_pengawas', '=', 'hr2.nik')
             ->leftJoin('db_payroll.dbo.tm_departemen as dp', 'hr.Id_Departemen', '=', 'dp.ID_Departemen')
@@ -119,21 +147,18 @@ class KKHController extends Controller
         }
 
 
-        $tanggalInput = $request->input('tanggalKKH');
-
-        $startDate = Carbon::now();
-        $endDate = $startDate;
 
 
-        if ($tanggalInput) {
-            if (str_contains($tanggalInput, 'to')) {
-                [$startDate, $endDate] = array_map('trim', explode('to', $tanggalInput));
-            } else {
-                $startDate = trim($tanggalInput);
-                $endDate = $startDate;
-            }
 
-        }
+        // if ($tanggalInput) {
+        //     if (str_contains($tanggalInput, 'to')) {
+        //         [$startDate, $endDate] = array_map('trim', explode('to', $tanggalInput));
+        //     } else {
+        //         $startDate = trim($tanggalInput);
+        //         $endDate = $startDate;
+        //     }
+
+        // }
 
 
         $shift = $request->shift;
@@ -149,7 +174,7 @@ class KKHController extends Controller
         }
 
 
-        $kkh->whereBetween('kkh.tgl', [$startDate, $endDate]);
+        // $kkh->whereBetween('kkh.tgl', [$startDate, $endDate]);
 
 
 
@@ -281,7 +306,7 @@ class KKHController extends Controller
                 //         ELSE 'YA'
                 //     END as FIT_BEKERJA
                 // "),
-                DB::raw("CASE WHEN kkh.fit_or IS NULL OR kkh.fit_or = 0 THEN 'TIDAK' ELSE 'YA' END as FIT_BEKERJA"),
+                DB::raw("CASE WHEN kkh.fit_or IS NULL OR kkh.fit_or = 0 THEN 'Perlu Verifikasi' ELSE 'Ya' END as FIT_BEKERJA"),
                 DB::raw('UPPER(kkh.keluhan) as KELUHAN'),
                 'kkh.masalah_pribadi as MASALAH_PRIBADI',
                 'kkh.verifikasi as VERIFIKASI',

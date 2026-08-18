@@ -47,8 +47,17 @@ class DashboardController extends Controller
             $cursor->addMonth();
         }
 
+        $latestIds = DB::connection('kkh')
+        ->table('db_payroll.dbo.web_kkh')
+        ->where('tgl', $now)
+        ->groupBy('tgl', 'nik')
+        ->selectRaw('tgl, nik, MAX(id) as id');
+
         $kkh = DB::connection('kkh')
             ->table('db_payroll.dbo.web_kkh as kkh')
+            ->joinSub($latestIds, 'latest', function ($join) {
+                $join->on('kkh.id', '=', 'latest.id');
+            })
             ->leftJoin('db_payroll.dbo.tbl_data_hr as hr', 'kkh.nik', '=', 'hr.nik')
             ->leftJoin('db_payroll.dbo.tbl_data_hr as hr2', 'kkh.nik_pengawas', '=', 'hr2.nik')
             ->leftJoin('db_payroll.dbo.tm_departemen as dp', 'hr.Id_Departemen', '=', 'dp.ID_Departemen')
@@ -127,7 +136,7 @@ class DashboardController extends Controller
         $kkhBelumDiverifikasi = $dataKKH->where('ferivikasi_pengawas', '!=', 1);
 
 
-        $kkhUnfit = $dataKKH->where('FIT_BEKERJA', '!=', 1);
+        $kkhUnfit = $dataKKH->where('KELUHAN', '!=', 'FIT');
 
 
         $kkhdibawah6Jam = $dataKKH->filter(function($item) {

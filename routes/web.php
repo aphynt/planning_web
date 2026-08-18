@@ -2,14 +2,23 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DistribusiFrekuensiFuelStationController;
+use App\Http\Controllers\DistribusiFrekuensiFuelTruckController;
 use App\Http\Controllers\FuelmanController;
+use App\Http\Controllers\JournalController;
 use App\Http\Controllers\KKHController;
 use App\Http\Controllers\KLKHFuelStationController;
 use App\Http\Controllers\MappingSOPController;
 use App\Http\Controllers\MappingVerifierController;
+use App\Http\Controllers\MineMonitoringController;
+use App\Http\Controllers\OverspeedController;
+use App\Http\Controllers\RefuelingMonitoringController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\VerifiedController;
 use App\Http\Controllers\SOPPlanningController;
+use App\Http\Controllers\StatusActivityController;
+use App\Http\Controllers\StatusAvailabilityController;
+use App\Http\Controllers\StatusController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
@@ -113,6 +122,50 @@ Route::group(['middleware' => ['auth']], function(){
         Route::get('/pembuatanLaporanManagementProfitLo', [SOPPlanningController::class, 'pembuatanLaporanManagementProfitLo'])->name('pembuatanLaporanManagementProfitLo');
         Route::get('/pembuatanLaporanBusinessPlan', [SOPPlanningController::class, 'pembuatanLaporanBusinessPlan'])->name('pembuatanLaporanBusinessPlan');
     });
+
+    //Mine Monitoring
+    Route::get('/mine-monitoring', [MineMonitoringController::class, 'index'])->name('mineMonitoring.index');
+    Route::get('/mine-monitoring/api', [MineMonitoringController::class, 'api'])->name('mineMonitoring.api');
+
+    //Refueling Monitoring
+    Route::get('/refueling-monitoring', [RefuelingMonitoringController::class, 'index'])->name('refuelingMonitoring.index');
+    Route::get('/refueling-monitoring/api', [RefuelingMonitoringController::class, 'api'])->name('refuelingMonitoring.api');
+
+    //Summary
+    Route::get('/summary', [JournalController::class, 'index'])->name('summary.index');
+
+    //Journal
+    Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
+
+    //Status
+    Route::get('/status', [StatusController::class, 'index'])->name('status.index');
+    Route::get('/status/api', [StatusController::class, 'api'])->name('status.api');
+
+    //Status & Activity
+    Route::get('/status-activity', [StatusActivityController::class, 'index'])->name('statusActivity.index');
+    Route::get('/status-activity/api', [StatusActivityController::class, 'api'])->name('statusActivity.api');
+
+    //Status & Availability
+    Route::get('/status-availability', [StatusAvailabilityController::class, 'index'])->name('statusAvailability.index');
+    Route::get('/status-availability/api', [StatusAvailabilityController::class, 'api'])->name('statusAvailability.api');
+
+    //Distribusi Frekuensi Fuel Truck
+    Route::get('/distribusi-frekuensi-fueltruck', [DistribusiFrekuensiFuelTruckController::class, 'index'])->name('distribusiFrekuensiFuelTruck.index');
+    Route::get('/distribusi-frekuensi-fueltruck/api', [DistribusiFrekuensiFuelTruckController::class, 'api'])->name('distribusiFrekuensiFuelTruck.api');
+
+    Route::get('/distribusi-frekuensi-fueltruck/durasi', [DistribusiFrekuensiFuelTruckController::class, 'durasi'])->name('distribusiFrekuensiFuelTruck.durasi');
+    Route::get('/distribusi-frekuensi-fueltruck/durasi/api', [DistribusiFrekuensiFuelTruckController::class, 'durasi_api'])->name('distribusiFrekuensiFuelTruck.durasi.api');
+
+    //Distribusi Frekuensi Fuel Station
+    Route::get('/distribusi-frekuensi-fuelstation', [DistribusiFrekuensiFuelStationController::class, 'index'])->name('distribusiFrekuensiFuelStation.index');
+    Route::get('/distribusi-frekuensi-fuelstation/api', [DistribusiFrekuensiFuelStationController::class, 'api'])->name('distribusiFrekuensiFuelStation.api');
+
+    Route::get('/distribusi-frekuensi-fuelstation/durasi', [DistribusiFrekuensiFuelStationController::class, 'durasi'])->name('distribusiFrekuensiFuelStation.durasi');
+    Route::get('/distribusi-frekuensi-fuelstation/durasi/api', [DistribusiFrekuensiFuelStationController::class, 'durasi_api'])->name('distribusiFrekuensiFuelStation.durasi.api');
+
+    //Overspeed
+    Route::get('/overspeed', [OverspeedController::class, 'index'])->name('overspeed.index');
+    Route::get('/overspeed/api', [OverspeedController::class, 'api'])->name('overspeed.api');
 
     //Users
     Route::get('/users', [UsersController::class, 'index'])->name('users.index');

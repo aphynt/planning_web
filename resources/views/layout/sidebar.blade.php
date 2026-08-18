@@ -1,9 +1,11 @@
 <div class="main-nav">
     <!-- Sidebar Logo -->
-    <div class="logo-box">
+    <div class="logo-box text-center">
         <a href="#" class="logo-light">
-            <img src="{{ asset('app') }}/assets/images/sims3.png" class="img-fluid" width="100px" alt="logo">
-            <span class="badge bg-info">{{ config('app.name') }} {{ config('app.version') }}</span>
+            <img src="{{ asset('app') }}/assets/images/sims5.png"
+                class="img-fluid"
+                width="200px"
+                alt="logo">
         </a>
     </div>
 
@@ -22,10 +24,10 @@
                     <span class="nav-icon">
                         <i class="ri-dashboard-2-line"></i>
                     </span>
-                    <span class="nav-text">Dashboard</span>
+                    <span class="nav-text">Beranda</span>
                 </a>
             </li>
-            <li class="menu-title">Menu</li>
+            <li class="menu-title">Dokumen & SOP</li>
             <li class="nav-item">
                 <a class="nav-link menu-arrow" href="#daftarLaporanSidebar" data-bs-toggle="collapse" role="button"
                     aria-expanded="false" aria-controls="daftarLaporanSidebar">
@@ -192,6 +194,115 @@
                     </ul>
                 </div>
 
+            </li>
+            <li class="menu-title">Fuel Management</li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('mineMonitoring.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-road-map-line"></i>
+                    </span>
+                    <span class="nav-text">Mine Monitoring</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('refuelingMonitoring.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-gas-station-line"></i>
+                    </span>
+                    <span class="nav-text">Refueling Monitoring</span>
+                </a>
+            </li>
+
+            {{-- <li class="nav-item">
+                <a class="nav-link" href="{{ route('summary.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-dashboard-3-line"></i>
+                    </span>
+                    <span class="nav-text">Summary</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('journal.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-book-open-line"></i>
+                    </span>
+                    <span class="nav-text">Journal</span>
+                </a>
+            </li> --}}
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('statusAvailability.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-pie-chart-2-line"></i>
+                    </span>
+                    <span class="nav-text">Status & Availability</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('status.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-information-line"></i>
+                    </span>
+                    <span class="nav-text">Detail Status</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('statusActivity.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-line-chart-line"></i>
+                    </span>
+                    <span class="nav-text">Status & Activity</span>
+                </a>
+            </li>
+
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('distribusiFrekuensiFuelTruck.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-truck-line"></i>
+                    </span>
+                    <span class="nav-text">Distribusi Frek. Fuel Truck</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('distribusiFrekuensiFuelTruck.durasi') }}">
+                    <span class="nav-icon">
+                        <i class="ri-timer-line"></i>
+                    </span>
+                    <span class="nav-text">Durasi Refueling Fuel Truck</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('distribusiFrekuensiFuelStation.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-gas-station-line"></i>
+                    </span>
+                    <span class="nav-text">Distribusi Frek. Fuel Station</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('distribusiFrekuensiFuelStation.durasi') }}">
+                    <span class="nav-icon">
+                        <i class="ri-time-line"></i>
+                    </span>
+                    <span class="nav-text">Durasi Refueling Fuel Station</span>
+                </a>
+            </li>
+
+           <li class="nav-item">
+                <a class="nav-link" href="{{ route('overspeed.index') }}">
+                    <span class="nav-icon">
+                        <i class="ri-speed-line"></i>
+                    </span>
+                    <span class="nav-text">Unit Overspeed</span>
+                </a>
             </li>
             @if (Auth::user()->role == 'ADMIN')
                 <li class="menu-title">Configuration Mobile</li>
