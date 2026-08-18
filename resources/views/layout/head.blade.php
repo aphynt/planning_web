@@ -28,11 +28,11 @@
 
      <!-- App css (Require in all Page) -->
      <link href="{{ asset('app') }}/assets/css/app.min.css" rel="stylesheet" type="text/css" />
-     <link href="{{ asset('app') }}/assets/css/custom.css" rel="stylesheet" type="text/css" />
      <link rel="stylesheet" href="{{ asset('app') }}/assets/css/fonts.css">
 
      <!-- Theme Config js (Require in all Page) -->
      <script src="{{ asset('app') }}/assets/js/config.min.js"></script>
+     <link href="{{ asset('app') }}/assets/css/custom.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
