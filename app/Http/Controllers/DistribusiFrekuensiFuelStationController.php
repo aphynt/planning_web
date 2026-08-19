@@ -48,6 +48,7 @@ class DistribusiFrekuensiFuelStationController extends Controller
             ->where('A.VHC_TYPEID', 5)
             ->where('A.OPR_REPORTTIME', '>', '1970-01-01')
             ->whereNotNull('A.VSA_NOTES')
+            ->where('A.LOC_NAME', 'LIKE', '%FUE%')
             ->where('A.VSA_NOTES', '<>', '')
             ->where(function ($q) {
                 $q->where('A.VSA_NOTES', 'LIKE', '%Hauler%')
@@ -304,6 +305,7 @@ class DistribusiFrekuensiFuelStationController extends Controller
             ->whereNotNull('A.LOC_NAME')
             ->where('A.LOC_NAME', '<>', '')
             ->whereNotNull('A.VSA_NOTES')
+            ->where('A.LOC_NAME', 'LIKE', '%FUE%')
             ->where('A.VSA_NOTES', '<>', '')
             ->where(function ($q) {
                 $q->where('A.VSA_NOTES', 'LIKE', '%Hauler%')

@@ -609,7 +609,7 @@
 
                             $avatarUrl = $avatar == 'gbr.jpg'
                                 ? asset('app/assets/images/users/avatar.png')
-                                : "http://10.72.4.202:2001/asset/foto/karyawan/{$avatar}";
+                                : "https://hrlink.ptsims.co.id/asset/foto/karyawan/{$avatar}";
                         @endphp
 
                         <a href="javascript:void(0)"

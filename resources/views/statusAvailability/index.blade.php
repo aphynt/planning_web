@@ -88,6 +88,13 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
+                            <div class="col-6 col-md-1 mb-2">
+                                <label for="aggregation">Tampilan</label>
+                                <select class="form-select" name="aggregation" id="aggregation">
+                                    <option value="total" selected>Total</option>
+                                    <option value="average">Rata-rata</option>
+                                </select>
+                            </div>
                             <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
                                 <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
                             </div>
@@ -907,8 +914,12 @@
     }
 
     function formatNumber(value) {
-        return Number(value || 0).toFixed(1);
-    }
+            const number = Number(value || 0);
+
+            return number === 0
+                ? '-'
+                : number.toFixed(1);
+        }
 
     function loadAvailability() {
         $('#loadingOverlay').css('display', 'flex');

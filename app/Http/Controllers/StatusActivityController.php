@@ -26,34 +26,51 @@ class StatusActivityController extends Controller
         $offset = $request->input('start', 0);
         $length = $request->input('length', 10);
         $draw = $request->input('draw');
+
         $query = DB::connection('focus_reporting')
             ->table('dbo.VW_VSA_STATUSACTIVITYEX as A')
             ->leftJoin('FOCUS.dbo.FLT_VSAGROUP as B', 'A.VSA_GROUPID', '=', 'B.VSA_GROUPID')
             ->leftJoin('FOCUS.dbo.FLT_VSASTATUS as C', 'A.VSA_STATUSID', '=', 'C.VSA_STATUSID')
             ->leftJoin('FOCUS.dbo.FLT_VSAACTIVITY as D', function ($join) {
                 $join->on('A.VHC_TYPEID', '=', 'D.VHC_TYPEID')
-                ->on('A.VSA_ACTIVITYID', '=', 'D.VSA_ACTIVITYID');
-                })
-            ->leftJoin('FOCUS.dbo.FLT_SHIFT as E', 'A.OPR_SHIFTNO', '=', 'E.SHIFTNO')
+                    ->on('A.VSA_ACTIVITYID', '=', 'D.VSA_ACTIVITYID');
+            })
+            ->leftJoin('FOCUS.dbo.FLT_SHIFT as E', function ($join) {
+                $join->on(
+                    'E.SHIFTNO',
+                    '=',
+                    DB::raw("
+                        CASE
+                            WHEN CAST(A.OPR_REPORTTIME AS TIME) >= '07:00:00'
+                            AND CAST(A.OPR_REPORTTIME AS TIME) < '19:00:00'
+                            THEN 6
+                            ELSE 7
+                        END
+                    ")
+                );
+            })
             ->select([
                 'A.ID',
                 'A.OPR_REPORTTIME',
                 'A.OPR_ENDTIME',
                 'A.OPR_SHIFTDATE',
-                'A.OPR_SHIFTNO',
+                DB::raw("
+                    CASE
+                        WHEN CAST(A.OPR_REPORTTIME AS TIME) >= '07:00:00'
+                        AND CAST(A.OPR_REPORTTIME AS TIME) < '19:00:00'
+                        THEN 6
+                        ELSE 7
+                    END AS OPR_SHIFTNO
+                "),
                 'E.SHIFTDESC',
-
                 DB::raw('CAST(COALESCE(A.ENG_TRAVEL,0)/60.0 AS FLOAT) AS ENG_TRAVEL'),
                 DB::raw('CAST(COALESCE(A.ENG_STOPPED,0)/60.0 AS FLOAT) AS ENG_STOPPED'),
                 DB::raw('CAST(COALESCE(A.ENG_OFF,0)/60.0 AS FLOAT) AS ENG_OFF'),
-
                 DB::raw('DATEDIFF_BIG(SECOND,A.OPR_REPORTTIME,A.OPR_ENDTIME)/60.0 AS DURATION'),
-
                 'A.VHC_ID',
                 'A.VSA_GROUPID',
                 'A.VSA_STATUSID',
                 'A.VSA_ACTIVITYID',
-
                 DB::raw("
                     CAST(
                         IIF(
@@ -63,44 +80,56 @@ class StatusActivityController extends Controller
                         )
                     AS VARCHAR(100)) AS STATUSACTIVITYDESC
                 ")
-            ])->where('A.VHC_TYPEID', 5);
+            ])
+            ->where('A.VHC_TYPEID', 5);
 
-            $tanggal = $request->input('tanggalStatus');
-            $shift   = $request->input('shift');
-            $vhc_id  = $request->input('vhc_id');
+        $tanggal = $request->input('tanggalStatus');
+        $shift = $request->input('shift');
+        $vhc_id = $request->input('vhc_id');
 
-            if (empty($tanggal)) {
-                $tanggal = Carbon::today()->format('Y-m-d');
+        if (empty($tanggal)) {
+            $tanggal = Carbon::today()->format('Y-m-d');
+        }
+
+        $dateStart = Carbon::parse($tanggal)->startOfDay();
+        $dateEnd = Carbon::parse($tanggal)->addDay()->startOfDay();
+
+        if (!empty($shift) && $shift != 'Semua') {
+            if ($shift == '6') {
+                $shiftStart = Carbon::parse($tanggal . ' 07:00:00');
+                $shiftEnd = Carbon::parse($tanggal . ' 19:00:00');
+            } elseif ($shift == '7') {
+                $shiftStart = Carbon::parse($tanggal . ' 19:00:00');
+                $shiftEnd = Carbon::parse($tanggal)->addDay()->setTime(7, 0, 0);
+            } else {
+                $shiftStart = $dateStart;
+                $shiftEnd = $dateEnd;
             }
 
-            $query->whereDate('A.OPR_SHIFTDATE', $tanggal);
+            $query->where('A.OPR_REPORTTIME', '>=', $shiftStart)
+                ->where('A.OPR_REPORTTIME', '<', $shiftEnd);
+        } else {
+            $query->where('A.OPR_REPORTTIME', '>=', $dateStart)
+                ->where('A.OPR_REPORTTIME', '<', $dateEnd);
+        }
 
-            if (!empty($shift) && $shift != 'Semua') {
-                $query->where('A.OPR_SHIFTNO', $shift);
-            }
-
-            if (!empty($vhc_id) && $vhc_id != 'Semua') {
-                $query->where('A.VHC_ID', $vhc_id);
-            }
+        if (!empty($vhc_id) && $vhc_id != 'Semua') {
+            $query->where('A.VHC_ID', $vhc_id);
+        }
 
         $query->where('A.OPR_REPORTTIME', '>', '1970-01-01')
             ->where('A.OPR_ENDTIME', '>', '1970-01-01')
             ->whereRaw('A.OPR_ENDTIME >= A.OPR_REPORTTIME');
 
-
         if ($request->filled('search.value')) {
-
             $search = '%' . $request->input('search.value') . '%';
 
             $query->where(function ($q) use ($search) {
-
                 $q->orWhere('A.VHC_ID', 'like', $search)
-                ->orWhere('B.VSA_GROUPDESC', 'like', $search)
-                ->orWhere('C.VSA_STATUSDESC', 'like', $search)
-                ->orWhere('D.VSA_ACTIVITYDESC', 'like', $search);
-
+                    ->orWhere('B.VSA_GROUPDESC', 'like', $search)
+                    ->orWhere('C.VSA_STATUSDESC', 'like', $search)
+                    ->orWhere('D.VSA_ACTIVITYDESC', 'like', $search);
             });
-
         }
 
         $filtered = (clone $query)->count();
