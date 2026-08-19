@@ -476,15 +476,15 @@
             },
             yaxis: {
                 min: 0,
-                max: selectedUnit === 'ALL' ? undefined : 60,
+                max: selectedUnit === 'ALL' ? undefined : 1,
                 title: {
-                    text: 'Durasi (Menit)'
+                    text: 'Durasi (Jam)'
                 }
             },
             tooltip: {
                 y: {
                     formatter: function (value) {
-                        return Number(value).toFixed(1) + ' menit';
+                        return Number(value).toFixed(1) + ' jam';
                     }
                 }
             },
@@ -716,7 +716,7 @@
                 tooltip: {
                     y: {
                         formatter: function (value) {
-                            return Number(value).toFixed(1) + ' menit';
+                            return Number(value).toFixed(1) + ' jam';
                         }
                     }
                 }
@@ -918,7 +918,7 @@
 
             return number === 0
                 ? '-'
-                : number.toFixed(1);
+                : number.toFixed(2);
         }
 
     function loadAvailability() {
@@ -929,7 +929,8 @@
             type: "GET",
             data: {
                 tanggalStatus: $('#tanggalStatus').val(),
-                shift: $('#shift').val()
+                shift: $('#shift').val(),
+                aggregation: $('#aggregation').val()
             },
             success: function (res) {
                 buildTable(res);

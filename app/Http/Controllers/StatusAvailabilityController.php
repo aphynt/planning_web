@@ -560,96 +560,87 @@ class StatusAvailabilityController extends Controller
         $pivot = $orderedPivot;
         $totals = [];
 
-        foreach ($pivot as $hour => $statusesData) {
-
-            foreach ($statusesData as $status => $unitsData) {
-
-                foreach ($unitsData as $unit => $duration) {
-
-                    if (!isset($totals[$status][$unit])) {
-                        $totals[$status][$unit] = 0;
-                    }
-
-                    $totals[$status][$unit] +=
-                        $duration;
-                }
+foreach ($pivot as $hour => $statusesData) {
+    foreach ($statusesData as $status => $unitsData) {
+        foreach ($unitsData as $unit => $duration) {
+            if (!isset($totals[$status][$unit])) {
+                $totals[$status][$unit] = 0;
             }
+
+            $totals[$status][$unit] += $duration;
         }
+    }
+}
 
-        foreach (
-            $pivot
-            as $hour => &$statusesData
-        ) {
+$frequency = [];
 
-            foreach (
-                $statusesData
-                as $status => &$unitsData
-            ) {
-
-                foreach (
-                    $unitsData
-                    as $unit => &$duration
-                ) {
-
-                    $duration =
-                        round($duration, 2);
-                }
+foreach ($pivot as $hour => $statusesData) {
+    foreach ($statusesData as $status => $unitsData) {
+        foreach ($unitsData as $unit => $duration) {
+            if (!isset($frequency[$status][$unit])) {
+                $frequency[$status][$unit] = 0;
             }
+
+            $frequency[$status][$unit]++;
         }
+    }
+}
 
-        unset(
-            $statusesData,
-            $unitsData,
-            $duration
-        );
-        foreach (
-            $totals
-            as $status => &$unitsData
-        ) {
+if ($aggregation === 'average') {
+    foreach ($totals as $status => &$unitsData) {
+        foreach ($unitsData as $unit => &$duration) {
+            $count = $frequency[$status][$unit] ?? 0;
 
-            foreach (
-                $unitsData
-                as $unit => &$duration
-            ) {
-
-                $duration =
-                    round($duration, 2);
+            if ($count > 0) {
+                $duration = $duration / $count;
+            } else {
+                $duration = 0;
             }
+
+            $duration = round($duration / 60, 2);
         }
+    }
 
-        unset(
-            $unitsData,
-            $duration
-        );
+    unset($unitsData, $duration);
+} else {
+    foreach ($totals as $status => &$unitsData) {
+        foreach ($unitsData as $unit => &$duration) {
+            $duration = round($duration / 60, 2);
+        }
+    }
 
-        if ($aggregation === 'average' && $dayCount > 1) {
-            foreach ($pivot as $hour => &$statusesData) {
-                foreach ($statusesData as $status => &$unitsData) {
-                    foreach ($unitsData as $unit => &$duration) {
-                        $duration = round($duration / $dayCount, 2);
-                    }
+    unset($unitsData, $duration);
+}
+
+foreach ($pivot as $hour => &$statusesData) {
+    foreach ($statusesData as $status => &$unitsData) {
+        foreach ($unitsData as $unit => &$duration) {
+            if ($aggregation === 'average') {
+                $count = $frequency[$status][$unit] ?? 0;
+
+                if ($count > 0) {
+                    $duration = $duration / $count;
+                } else {
+                    $duration = 0;
                 }
             }
 
-            unset($statusesData, $unitsData, $duration);
-
-            foreach ($totals as $status => &$unitsData) {
-                foreach ($unitsData as $unit => &$duration) {
-                    $duration = round($duration / $dayCount, 2);
-                }
-            }
-
-            unset($unitsData, $duration);
+            $duration = round($duration / 60, 2);
         }
+    }
+}
 
-        return response()->json([
-            'units'       => $units,
-            'hours'       => $hours,
-            'statuses'    => $statuses,
-            'pivot'       => $pivot,
-            'totals'      => $totals,
-            'aggregation' => $aggregation,
-            'dayCount'    => $dayCount
-        ]);
+unset($statusesData, $unitsData, $duration);
+
+return response()->json([
+    'units'       => $units,
+    'hours'       => $hours,
+    'statuses'    => $statuses,
+    'pivot'       => $pivot,
+    'totals'      => $totals,
+    'frequency'   => $frequency,
+    'aggregation' => $aggregation,
+    'dayCount'    => $dayCount
+]);
     }
 }
