@@ -235,9 +235,18 @@
             <li class="nav-item">
                 <a class="nav-link" href="{{ route('statusAvailability.index') }}">
                     <span class="nav-icon">
-                        <i class="ri-pie-chart-2-line"></i>
+                        <i class="ri-dashboard-3-line"></i>
                     </span>
                     <span class="nav-text">Status & Availability</span>
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('statusAvailability.grafik') }}">
+                    <span class="nav-icon">
+                        <i class="ri-bar-chart-grouped-line"></i>
+                    </span>
+                    <span class="nav-text">Grafik Status & Availability</span>
                 </a>
             </li>
 

@@ -1,7 +1,8 @@
-@include('layout.head', ['title' => 'Status & Availability'])
+@include('layout.head', ['title' => 'Grafik Status & Availability Fuel Truck'])
 @include('layout.header')
 @include('layout.theme_settings')
 @include('layout.sidebar')
+
 <style>
     @media (max-width: 767.98px) {
         .dt-buttons {
@@ -9,22 +10,8 @@
         }
     }
 
-    #tblAvailability th{
-        background:#fcfbfb;
-        color:#000000;
-        white-space:nowrap;
-    }
-
-    #tblAvailability td{
-        vertical-align:middle;
-    }
-
-    #tblAvailability tbody tr:hover{
-        background:#f8f9fa;
-    }
-
-    .table-warning td{
-        font-weight:bold;
+    .table-warning td {
+        font-weight: bold;
     }
 
     .unit-ready {
@@ -67,20 +54,56 @@
         min-height: 320px;
     }
 
+    #availabilityLoading {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(255, 255, 255, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        backdrop-filter: blur(2px);
+    }
+
+    #availabilityLoading.show {
+        display: flex;
+    }
+
+    #availabilityLoading .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    #availabilityLoading .loading-text {
+        margin-top: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+    }
 </style>
+<div id="availabilityLoading">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <div class="loading-text">Memuat data...</div>
+</div>
 <div class="page-content">
     <div class="container-fluid">
+
         <div class="row">
             <div class="col-12">
                 <div class="page-title-box">
-                    <h4 class="fw-semibold">Status & Availability</h4>
+                    <h4 class="fw-semibold">Grafik Status & Availability Fuel Truck</h4>
 
                     <div class="col-12">
                         <div class="row">
+
                             <div class="col-6 col-md-2 mb-2">
                                 <label for="tanggalStatus">Tanggal</label>
                                 <input type="text" id="tanggalStatus" class="form-control" name="tanggalStatus">
                             </div>
+
                             <div class="col-6 col-md-1 mb-2">
                                 <label for="shift">Shift</label>
                                 <select class="form-select" name="shift" id="shift">
@@ -88,15 +111,18 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2">
-                                <label for="aggregation">Tampilan</label>
-                                <select class="form-select" name="aggregation" id="aggregation">
-                                    <option value="total" selected>Total</option>
-                                    <option value="average">Rata-rata</option>
+
+                             <div class="col-6 col-md-2 mb-2">
+                                <label for="globalUnit">Vehicle</label>
+                                <select class="form-select" id="globalUnit">
+                                    <option value="ALL">Semua Unit</option>
                                 </select>
                             </div>
+
                             <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -105,50 +131,79 @@
         </div>
 
         <div class="row align-items-start">
+
             <div class="col-md-6">
+
                 <div class="card">
                     <div class="card-body">
-                        <div id="loadingOverlay">
-                            <div class="loading-box">
-                                <div class="spinner-border text-primary"></div>
-                                <small class="text-muted">
-                                    Mohon tunggu sebentar
-                                </small>
-                            </div>
-                        </div>
-
-                        <div class="table-responsive">
-                            <table id="tblAvailability" class="table table-bordered table-sm align-middle text-center">
-                                <thead id="tblHeader"></thead>
-                                <tbody id="tblBody"></tbody>
-                            </table>
-                        </div>
+                        <div id="status-pie-chart" class="apex-charts"></div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-md-6">
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
+                <div class="row mt-3">
+
+                    <div class="col-md-6">
+                        <div class="card h-100">
                             <div class="card-body">
-                                <div class="table-responsive">
-                                    <table id="tblPA" class="table table-bordered table-sm align-middle text-center w-100">
-                                        <thead id="tblPAHeader"></thead>
-                                        <tbody id="tblPABody"></tbody>
-                                    </table>
+                                <h6 class="mb-3">Physical Availability</h6>
+
+                                <div id="physicalAvailability" class="availability-kpi">
+                                    -
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="mb-3">Use of Availability</h6>
+
+                                <div id="useAvailability" class="availability-kpi">
+                                    -
                                 </div>
                             </div>
                         </div>
                     </div>
 
                 </div>
+
             </div>
+
+            <div class="col-md-6">
+
+                <div class="card">
+                    <div class="card-body">
+                        <div dir="ltr">
+                            <div id="availability-chart" class="apex-charts"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+{{--
+                        <div class="mb-3">
+                            <h4 class="card-title mb-0 text-center">
+                                Availability
+                            </h4>
+                        </div> --}}
+
+                        <div id="availability-rate-chart" class="apex-charts"></div>
+
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
     </div>
 </div>
+
 @include('layout.footer')
+
 <script>
     document.getElementById('tanggalStatus').flatpickr({
         mode: "range"
@@ -166,9 +221,31 @@
             const yyyy = today.getFullYear();
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
-            rangeInput.placeholder = `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
+
+            rangeInput.placeholder =
+                `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
         }
     });
+
+    let globalUnit = 'ALL';
+    let pendingGlobalUnit = 'ALL';
+
+    let availabilityChart = null;
+    let availabilityChartData = null;
+
+    let statusPieChart = null;
+    let statusPieData = null;
+
+    let availabilityRateChart = null;
+    let availabilityRateData = null;
+
+    function showAvailabilityLoading() {
+        $('#availabilityLoading').addClass('show');
+    }
+
+    function hideAvailabilityLoading() {
+        $('#availabilityLoading').removeClass('show');
+    }
 
     function getUnitStatusClass(status) {
         switch (String(status || '').toLowerCase()) {
@@ -194,7 +271,9 @@
 
         header += `
             <tr>
-                <th rowspan="2" class="align-middle text-center">Jam</th>
+                <th rowspan="2" class="align-middle text-center">
+                    Jam
+                </th>
                 <th colspan="${res.units.length}" class="text-center">
                     Physical Availability (PA)
                 </th>
@@ -219,18 +298,21 @@
         let html = '';
 
         res.hours.forEach(function (hour) {
+
             html += `
                 <tr>
                     <td>${hour}</td>
             `;
 
             res.units.forEach(function (unit) {
+
                 let ready = 0;
                 let standby = 0;
                 let delay = 0;
                 let breakdown = 0;
 
                 if (res.pivot[hour]) {
+
                     if (
                         res.pivot[hour]['Ready'] &&
                         res.pivot[hour]['Ready'][unit.id] !== undefined
@@ -268,16 +350,28 @@
                     }
                 }
 
-                const total = ready + standby + delay + breakdown;
+                const total =
+                    ready +
+                    standby +
+                    delay +
+                    breakdown;
 
                 let pa = null;
 
                 if (total > 0) {
-                    pa = ((ready + standby + delay) / total) * 100;
+                    pa =
+                        (
+                            (ready + standby + delay) /
+                            total
+                        ) * 100;
                 }
 
                 html += `
-                    <td>${pa !== null ? pa.toFixed(1) + '%' : '-'}</td>
+                    <td>
+                        ${pa !== null
+                            ? pa.toFixed(1) + '%'
+                            : '-'}
+                    </td>
                 `;
             });
 
@@ -289,52 +383,35 @@
         $('#tblPABody').html(html);
     }
 
-    let availabilityChart = null;
-    let availabilityChartData = null;
-
     function buildChart(res) {
         availabilityChartData = res;
-        const unitSelect = $('#chartUnit');
-
-        unitSelect.empty();
-
-        unitSelect.append(`
-            <option value="ALL">Semua Unit</option>
-        `);
-
-        res.units.forEach(function (unit) {
-            unitSelect.append(`
-                <option value="${unit.id}">
-                    ${unit.id}
-                </option>
-            `);
-        });
-
-        renderAvailabilityChart(res, 'ALL');
-
-        unitSelect.off('change').on('change', function () {
-            renderAvailabilityChart(
-                availabilityChartData,
-                $(this).val()
-            );
-        });
+        renderAvailabilityChart(
+            res,
+            globalUnit
+        );
     }
 
     function renderAvailabilityChart(res, selectedUnit) {
+
         const series = [];
 
         res.statuses.forEach(function (status) {
+
             const data = [];
 
             res.hours.forEach(function (hour) {
+
                 let total = 0;
 
                 if (
                     res.pivot[hour] &&
                     res.pivot[hour][status]
                 ) {
+
                     if (selectedUnit === 'ALL') {
+
                         res.units.forEach(function (unit) {
+
                             if (
                                 res.pivot[hour][status][unit.id] !== undefined
                             ) {
@@ -342,8 +419,11 @@
                                     res.pivot[hour][status][unit.id]
                                 );
                             }
+
                         });
+
                     } else {
+
                         if (
                             res.pivot[hour][status][selectedUnit] !== undefined
                         ) {
@@ -351,10 +431,13 @@
                                 res.pivot[hour][status][selectedUnit]
                             );
                         }
+
                     }
                 }
 
-                data.push(Number(total.toFixed(1)));
+                data.push(
+                    Number(total.toFixed(1))
+                );
             });
 
             series.push({
@@ -369,12 +452,14 @@
 
         const options = {
             series: series,
+
             colors: [
                 '#008FFB',
                 '#00E396',
                 '#FEB019',
                 '#FF4560'
             ],
+
             chart: {
                 type: 'bar',
                 height: 380,
@@ -383,6 +468,7 @@
                     show: false
                 }
             },
+
             plotOptions: {
                 bar: {
                     horizontal: false,
@@ -390,33 +476,52 @@
                     borderRadius: 3
                 }
             },
+
+            title: {
+                text: selectedUnit === 'ALL'
+                    ? 'Durasi Status All Fuel Truck'
+                    : 'Durasi Status ' + selectedUnit,
+                align: 'center',
+                style: {
+                    fontSize: '18px',
+                    fontWeight: 600
+                }
+            },
+
             xaxis: {
                 categories: res.hours,
                 title: {
                     text: 'Jam'
                 }
             },
+
             yaxis: {
                 min: 0,
-                max: selectedUnit === 'ALL' ? undefined : 1,
+                max: selectedUnit === 'ALL'
+                    ? undefined
+                    : 60,
                 title: {
-                    text: 'Durasi (Jam)'
+                    text: 'Durasi (Menit)'
                 }
             },
+
             tooltip: {
                 y: {
                     formatter: function (value) {
-                        return Number(value).toFixed(1) + ' jam';
+                        return Number(value).toFixed(1) + ' menit';
                     }
                 }
             },
+
             legend: {
                 position: 'top',
                 horizontalAlign: 'center'
             },
+
             dataLabels: {
                 enabled: false
             },
+
             stroke: {
                 width: 1
             }
@@ -430,57 +535,48 @@
         availabilityChart.render();
     }
 
-    let statusPieChart = null;
-    let availabilityRateChart = null;
+    function getHourStatusTotal(
+        res,
+        hour,
+        status,
+        selectedUnit = 'ALL'
+    ) {
 
-    function getOverallStatusTotals(res) {
-        const totals = {
-            Ready: 0,
-            Standby: 0,
-            Delay: 0,
-            Breakdown: 0
-        };
-
-        res.statuses.forEach(function (status) {
-            if (!res.totals[status]) {
-                return;
-            }
-
-            res.units.forEach(function (unit) {
-                if (res.totals[status][unit.id] !== undefined) {
-                    totals[status] += Number(res.totals[status][unit.id] || 0);
-                }
-            });
-        });
-
-        return totals;
-    }
-
-    function getHourStatusTotal(res, hour, status, selectedUnit = 'ALL') {
         let total = 0;
 
-        if (!res.pivot[hour] || !res.pivot[hour][status]) {
+        if (
+            !res.pivot[hour] ||
+            !res.pivot[hour][status]
+        ) {
             return 0;
         }
 
         if (selectedUnit === 'ALL') {
+
             res.units.forEach(function (unit) {
+
                 total += Number(
                     res.pivot[hour][status][unit.id] || 0
                 );
+
             });
+
         } else {
+
             total = Number(
                 res.pivot[hour][status][selectedUnit] || 0
             );
+
         }
 
         return total;
     }
 
-    let statusPieData = null;
+    function getOverallStatusTotals(
+        res,
+        selectedUnit = 'ALL'
+    ) {
 
-    function getOverallStatusTotals(res, selectedUnit = 'ALL') {
         const totals = {
             Ready: 0,
             Standby: 0,
@@ -489,22 +585,33 @@
         };
 
         res.statuses.forEach(function (status) {
+
             if (!res.totals[status]) {
                 return;
             }
 
             if (selectedUnit === 'ALL') {
+
                 res.units.forEach(function (unit) {
-                    if (res.totals[status][unit.id] !== undefined) {
+
+                    if (
+                        res.totals[status][unit.id] !== undefined
+                    ) {
                         totals[status] += Number(
                             res.totals[status][unit.id] || 0
                         );
                     }
+
                 });
-            } else if (res.totals[status][selectedUnit] !== undefined) {
+
+            } else if (
+                res.totals[status][selectedUnit] !== undefined
+            ) {
+
                 totals[status] += Number(
                     res.totals[status][selectedUnit] || 0
                 );
+
             }
         });
 
@@ -514,37 +621,22 @@
     function buildStatusPieChart(res) {
         statusPieData = res;
 
-        const unitSelect = $('#statusPieUnit');
-
-        unitSelect.empty();
-
-        unitSelect.append(`
-            <option value="ALL">Semua Unit</option>
-        `);
-
-        res.units.forEach(function (unit) {
-            unitSelect.append(`
-                <option value="${unit.id}">
-                    ${unit.id}
-                </option>
-            `);
-        });
-
-        renderStatusPieChart(res, 'ALL');
-
-        unitSelect.off('change').on('change', function () {
-            renderStatusPieChart(
-                statusPieData,
-                $(this).val()
-            );
-        });
+        renderStatusPieChart(
+            res,
+            globalUnit
+        );
     }
 
-    function renderStatusPieChart(res, selectedUnit) {
-        const totals = getOverallStatusTotals(
-            res,
-            selectedUnit
-        );
+    function renderStatusPieChart(
+        res,
+        selectedUnit
+    ) {
+
+        const totals =
+            getOverallStatusTotals(
+                res,
+                selectedUnit
+            );
 
         const total =
             totals.Ready +
@@ -555,17 +647,21 @@
         const physicalAvailability =
             total > 0
                 ? (
-                    (totals.Ready +
+                    (
+                        totals.Ready +
                         totals.Standby +
-                        totals.Delay) /
+                        totals.Delay
+                    ) /
                     total
                 ) * 100
                 : 0;
 
         const useAvailability =
-            (totals.Ready +
+            (
+                totals.Ready +
                 totals.Standby +
-                totals.Delay) > 0
+                totals.Delay
+            ) > 0
                 ? (
                     totals.Ready /
                     (
@@ -592,23 +688,34 @@
             document.querySelector('#status-pie-chart'),
             {
                 series: [
-                    Number(totals.Ready.toFixed(1)),
-                    Number(totals.Standby.toFixed(1)),
-                    Number(totals.Delay.toFixed(1)),
-                    Number(totals.Breakdown.toFixed(1))
+                    Number(
+                        totals.Ready.toFixed(1)
+                    ),
+                    Number(
+                        totals.Standby.toFixed(1)
+                    ),
+                    Number(
+                        totals.Delay.toFixed(1)
+                    ),
+                    Number(
+                        totals.Breakdown.toFixed(1)
+                    )
                 ],
+
                 labels: [
                     'Ready',
                     'Standby',
                     'Delay',
                     'Breakdown'
                 ],
+
                 colors: [
                     '#008FFB',
                     '#00E396',
                     '#FEB019',
                     '#FF4560'
                 ],
+
                 chart: {
                     type: 'pie',
                     height: 320,
@@ -616,29 +723,33 @@
                         show: false
                     }
                 },
+
                 title: {
                     text: selectedUnit === 'ALL'
-                        ? 'Diagram status All Fuel Truck'
-                        : 'Diagram status ' + selectedUnit,
+                        ? 'Diagram Status All Fuel Truck'
+                        : 'Diagram Status ' + selectedUnit,
                     align: 'center',
                     style: {
                         fontSize: '18px',
                         fontWeight: 600
                     }
                 },
+
                 dataLabels: {
                     enabled: true,
                     formatter: function (value) {
                         return value.toFixed(0) + '%';
                     }
                 },
+
                 legend: {
                     position: 'right'
                 },
+
                 tooltip: {
                     y: {
                         formatter: function (value) {
-                            return Number(value).toFixed(1) + ' jam';
+                            return Number(value).toFixed(1) + ' menit';
                         }
                     }
                 }
@@ -648,72 +759,57 @@
         statusPieChart.render();
     }
 
-    let availabilityRateData = null;
-
     function buildAvailabilityRateChart(res) {
+
         availabilityRateData = res;
-
-        const unitSelect = $('#availabilityRateUnit');
-
-        unitSelect.empty();
-
-        unitSelect.append(`
-            <option value="ALL">Semua Unit</option>
-        `);
-
-        res.units.forEach(function (unit) {
-            unitSelect.append(`
-                <option value="${unit.id}">
-                    ${unit.id}
-                </option>
-            `);
-        });
 
         renderAvailabilityRateChart(
             res,
-            'ALL'
+            globalUnit
         );
-
-        unitSelect.off('change').on('change', function () {
-            renderAvailabilityRateChart(
-                availabilityRateData,
-                $(this).val()
-            );
-        });
     }
 
-    function renderAvailabilityRateChart(res, selectedUnit) {
+    function renderAvailabilityRateChart(
+        res,
+        selectedUnit
+    ) {
+
         const uaData = [];
         const paData = [];
 
         res.hours.forEach(function (hour) {
-            const ready = getHourStatusTotal(
-                res,
-                hour,
-                'Ready',
-                selectedUnit
-            );
 
-            const standby = getHourStatusTotal(
-                res,
-                hour,
-                'Standby',
-                selectedUnit
-            );
+            const ready =
+                getHourStatusTotal(
+                    res,
+                    hour,
+                    'Ready',
+                    selectedUnit
+                );
 
-            const delay = getHourStatusTotal(
-                res,
-                hour,
-                'Delay',
-                selectedUnit
-            );
+            const standby =
+                getHourStatusTotal(
+                    res,
+                    hour,
+                    'Standby',
+                    selectedUnit
+                );
 
-            const breakdown = getHourStatusTotal(
-                res,
-                hour,
-                'Breakdown',
-                selectedUnit
-            );
+            const delay =
+                getHourStatusTotal(
+                    res,
+                    hour,
+                    'Delay',
+                    selectedUnit
+                );
+
+            const breakdown =
+                getHourStatusTotal(
+                    res,
+                    hour,
+                    'Breakdown',
+                    selectedUnit
+                );
 
             const total =
                 ready +
@@ -728,20 +824,30 @@
 
             const ua =
                 available > 0
-                    ? (ready / available) * 100
+                    ? (
+                        ready /
+                        available
+                    ) * 100
                     : 0;
 
             const pa =
                 total > 0
-                    ? (available / total) * 100
+                    ? (
+                        available /
+                        total
+                    ) * 100
                     : 0;
 
             uaData.push(
-                Number(ua.toFixed(1))
+                Number(
+                    ua.toFixed(1)
+                )
             );
 
             paData.push(
-                Number(pa.toFixed(1))
+                Number(
+                    pa.toFixed(1)
+                )
             );
         });
 
@@ -762,10 +868,12 @@
                         data: paData
                     }
                 ],
+
                 colors: [
                     '#ed7d31',
                     '#5b9bd5'
                 ],
+
                 chart: {
                     type: 'bar',
                     height: 520,
@@ -773,6 +881,7 @@
                         show: false
                     }
                 },
+
                 title: {
                     text: selectedUnit === 'ALL'
                         ? 'Availability All Fuel Truck'
@@ -783,12 +892,14 @@
                         fontWeight: 600
                     }
                 },
+
                 plotOptions: {
                     bar: {
                         horizontal: true,
                         barHeight: '55%'
                     }
                 },
+
                 dataLabels: {
                     enabled: true,
                     formatter: function (value) {
@@ -799,6 +910,7 @@
                         fontSize: '11px'
                     }
                 },
+
                 xaxis: {
                     categories: res.hours,
                     min: 0,
@@ -813,15 +925,18 @@
                         }
                     }
                 },
+
                 yaxis: {
                     title: {
                         text: 'Jam'
                     }
                 },
+
                 legend: {
                     position: 'bottom',
                     horizontalAlign: 'center'
                 },
+
                 tooltip: {
                     y: {
                         formatter: function (value) {
@@ -836,149 +951,107 @@
     }
 
     function formatNumber(value) {
-            const number = Number(value || 0);
 
-            return number === 0
-                ? '-'
-                : number.toFixed(2);
-        }
+        const number = Number(
+            value || 0
+        );
+
+        return number === 0
+            ? '-'
+            : number.toFixed(1);
+    }
 
     function loadAvailability() {
-        $('#loadingOverlay').css('display', 'flex');
+        showAvailabilityLoading();
+        $('#loadingOverlay').css(
+            'display',
+            'flex'
+        );
 
         $.ajax({
             url: "{{ route('statusAvailability.api') }}",
             type: "GET",
+
             data: {
-                tanggalStatus: $('#tanggalStatus').val(),
-                shift: $('#shift').val(),
-                aggregation: $('#aggregation').val()
+                tanggalStatus:
+                    $('#tanggalStatus').val(),
+
+                shift:
+                    $('#shift').val()
             },
+
             success: function (res) {
-                buildTable(res);
+
                 buildPATable(res);
+
+                const unitSelect =
+                    $('#globalUnit');
+
+                const currentUnit =
+                    pendingGlobalUnit;
+
+                unitSelect.empty();
+
+                unitSelect.append(`
+                    <option value="ALL">
+                        Semua Unit
+                    </option>
+                `);
+
+                res.units.forEach(function (unit) {
+
+                    unitSelect.append(`
+                        <option value="${unit.id}">
+                            ${unit.id}
+                        </option>
+                    `);
+
+                });
+
+                if (
+                    currentUnit !== 'ALL' &&
+                    res.units.some(
+                        unit =>
+                            unit.id === currentUnit
+                    )
+                ) {
+                    globalUnit =
+                        currentUnit;
+                } else {
+                    globalUnit = 'ALL';
+                }
+
+                unitSelect.val(
+                    globalUnit
+                );
+
                 buildChart(res);
+
                 buildStatusPieChart(res);
+
                 buildAvailabilityRateChart(res);
             },
+
             complete: function () {
-                $('#loadingOverlay').hide();
+
+                hideAvailabilityLoading();
+
             }
         });
     }
 
-    function buildTable(res) {
-        let header = '';
-
-        header += `
-            <tr>
-                <th rowspan="2" class="align-middle text-center">Hour</th>
-                <th rowspan="2" class="align-middle text-center">Status</th>
-                <th colspan="${res.units.length}" class="text-center">
-                    Durasi
-                </th>
-            </tr>
-            <tr>
-        `;
-
-        res.units.forEach(function (unit) {
-            let statusClass = getUnitStatusClass(unit.status);
-
-            header += `
-                <th class="text-center ${statusClass}">
-                    ${unit.id}
-                </th>
-            `;
-        });
-
-        header += `
-            </tr>
-        `;
-
-        $('#tblHeader').html(header);
-
-        buildBody(res);
-    }
-
-    function buildBody(res) {
-        let html = '';
-
-        res.hours.forEach(function (hour) {
-            res.statuses.forEach(function (status, index) {
-                html += '<tr>';
-
-                if (index == 0) {
-                    html += `
-                        <td rowspan="${res.statuses.length}">
-                            ${hour}
-                        </td>
-                    `;
-                }
-
-                html += `
-                    <td class="text-start fw-bold ps-3">
-                        ${status}
-                    </td>
-                `;
-
-                res.units.forEach(function (unit) {
-                    let value = 0;
-
-                    if (
-                        res.pivot[hour] &&
-                        res.pivot[hour][status] &&
-                        res.pivot[hour][status][unit.id] !== undefined
-                    ) {
-                        value = res.pivot[hour][status][unit.id];
-                    }
-
-                    html += `
-                        <td>${formatNumber(value)}</td>
-                    `;
-                });
-
-                html += '</tr>';
-            });
-        });
-
-        buildTotal(html, res);
-    }
-
-    function buildTotal(html, res) {
-        res.statuses.forEach(function (status) {
-            html += `
-                <tr class="table-warning">
-                    <td colspan="2" class="text-start fw-bold ps-3">
-                        Total ${status}
-                    </td>
-            `;
-
-            res.units.forEach(function (unit) {
-                let total = 0;
-
-                if (
-                    res.totals[status] &&
-                    res.totals[status][unit.id] !== undefined
-                ) {
-                    total = res.totals[status][unit.id];
-                }
-
-                html += `
-                    <td>${formatNumber(total)}</td>
-                `;
-            });
-
-            html += '</tr>';
-        });
-
-        $('#tblBody').html(html);
-    }
-
     $(document).ready(function () {
+
         loadAvailability();
 
-        $('#cariStatus').click(function () {
-            loadAvailability();
+        $('#cariStatus').click(
+            function () {
+                loadAvailability();
+            }
+        );
+
+        $('#globalUnit').change(function () {
+            pendingGlobalUnit = $(this).val();
         });
     });
 </script>

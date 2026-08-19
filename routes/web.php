@@ -147,6 +147,7 @@ Route::group(['middleware' => ['auth']], function(){
 
     //Status & Availability
     Route::get('/status-availability', [StatusAvailabilityController::class, 'index'])->name('statusAvailability.index');
+    Route::get('/status-availability/grafik', [StatusAvailabilityController::class, 'grafik'])->name('statusAvailability.grafik');
     Route::get('/status-availability/api', [StatusAvailabilityController::class, 'api'])->name('statusAvailability.api');
 
     //Distribusi Frekuensi Fuel Truck

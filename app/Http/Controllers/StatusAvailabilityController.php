@@ -14,6 +14,11 @@ class StatusAvailabilityController extends Controller
         return view('statusAvailability.index');
     }
 
+    public function grafik()
+    {
+        return view('statusAvailability.grafik');
+    }
+
     public function api(Request $request)
     {
         $query = DB::connection('focus_reporting')
