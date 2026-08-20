@@ -67,6 +67,20 @@
         min-height: 320px;
     }
 
+    .summary-total {
+        background-color: #fdebd0 !important;
+    }
+
+    .summary-average {
+        background-color: #e8f5e9 !important;
+    }
+
+    .summary-total td,
+    .summary-average td {
+        background-color: inherit !important;
+        font-weight: 600;
+    }
+
 </style>
 <div class="page-content">
     <div class="container-fluid">
@@ -932,19 +946,10 @@
     }
 
     function buildBody(res) {
-
         let html = '';
-
-        // =====================================================
-        // PER HOUR
-        // =====================================================
-
         res.hours.forEach(function (hour) {
-
             res.statuses.forEach(function (status, index) {
-
                 html += '<tr>';
-
                 if (index === 0) {
 
                     html += `
@@ -983,21 +988,11 @@
             });
         });
 
-
-        // =====================================================
-        // TOTAL
-        // =====================================================
-
         html += buildSummaryRows(
             res,
             'Total',
             res.totals
         );
-
-
-        // =====================================================
-        // RATA-RATA PER JAM
-        // =====================================================
 
         html += buildSummaryRows(
             res,
@@ -1010,21 +1005,18 @@
     }
 
     function buildSummaryRows(res, title, data) {
-
         let html = '';
+        const rowClass =
+            title === 'Total'
+                ? 'summary-total'
+                : 'summary-average';
 
         res.statuses.forEach(function (status, index) {
 
             html += `
-                <tr class="summary-row">
+                <tr class="${rowClass}">
             `;
-
-            // =================================================
-            // LABEL TOTAL / RATA-RATA
-            // =================================================
-
             if (index === 0) {
-
                 html += `
                     <td
                         rowspan="${res.statuses.length}"
@@ -1035,32 +1027,19 @@
                 `;
             }
 
-
-            // =================================================
-            // STATUS
-            // =================================================
-
             html += `
                 <td class="text-start fw-bold ps-3">
                     ${status}
                 </td>
             `;
 
-
-            // =================================================
-            // UNIT
-            // =================================================
-
             res.units.forEach(function (unit) {
-
                 let value = 0;
-
                 if (
                     data &&
                     data[status] &&
                     data[status][unit.id] !== undefined
                 ) {
-
                     value = Number(
                         data[status][unit.id]
                     );
