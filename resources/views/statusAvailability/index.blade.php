@@ -1011,59 +1011,48 @@
     }
 
     function buildSummaryRows(res, title, data) {
+        let html = '';
+        res.statuses.forEach(function (status, index) {
+            html += '<tr class="table-warning">';
+            if (index === 0) {
 
-    let html = '';
-
-    res.statuses.forEach(function (status, index) {
-
-        html += '<tr class="table-warning">';
-
-        // Label Total / Rata-rata
-        if (index === 0) {
-
-            html += `
-                <td
-                    rowspan="${res.statuses.length}"
-                    class="text-start fw-bold ps-3 align-middle"
-                >
-                    ${title}
-                </td>
-            `;
-        }
-
-        // Status
-        html += `
-            <td class="text-start fw-bold ps-3">
-                ${status}
-            </td>
-        `;
-
-
-        // Unit
-        res.units.forEach(function (unit) {
-
-            let value = 0;
-
-            if (
-                data &&
-                data[status] &&
-                data[status][unit.id] !== undefined
-            ) {
-                value = Number(
-                    data[status][unit.id]
-                );
+                html += `
+                    <td
+                        rowspan="${res.statuses.length}"
+                        class="text-start fw-bold ps-3 align-middle"
+                    >
+                        ${title}
+                    </td>
+                `;
             }
 
             html += `
-                <td>${formatNumber(value)}</td>
+                <td class="text-start fw-bold ps-3">
+                    ${status}
+                </td>
             `;
+
+            res.units.forEach(function (unit) {
+                let value = 0;
+                if (
+                    data &&
+                    data[status] &&
+                    data[status][unit.id] !== undefined
+                ) {
+                    value = Number(
+                        data[status][unit.id]
+                    );
+                }
+                html += `
+                    <td>${formatNumber(value)}</td>
+                `;
+            });
+
+            html += '</tr>';
         });
 
-        html += '</tr>';
-    });
-
-    return html;
-}
+        return html;
+    }
 
     function buildTotal(html, res) {
         res.statuses.forEach(function (status) {
