@@ -284,112 +284,317 @@ class StatusAvailabilityController extends Controller
         }
 
         $pivot = [];
+
         $addToPivot = function (
             $slot,
             $status,
             $unit,
             $duration
         ) use (&$pivot) {
+
             if ($duration <= 0) {
                 return;
             }
+
             if (!isset($pivot[$slot])) {
                 $pivot[$slot] = [];
             }
+
             if (!isset($pivot[$slot][$status])) {
                 $pivot[$slot][$status] = [];
             }
+
             if (!isset($pivot[$slot][$status][$unit])) {
                 $pivot[$slot][$status][$unit] = 0;
             }
+
             $pivot[$slot][$status][$unit] += $duration;
         };
 
+
         $dataByUnit = $data->groupBy('VHC_ID');
-        foreach ($units as $unit) {
+        $loopDate = Carbon::parse($startDate);
+        $lastDate = Carbon::parse($endDate);
 
-            $unitId = $unit['id'];
+        while ($loopDate->lte($lastDate)) {
+            $currentDate = $loopDate->format('Y-m-d');
+            if ($shift == '7') {
+                $dailyShiftStart = Carbon::parse(
+                    $currentDate . ' 19:00:00'
+                );
 
-            $unitData = $dataByUnit
-                ->get($unitId, collect())
-                ->sortBy('OPR_REPORTTIME')
-                ->values();
+                $dailyShiftEnd = Carbon::parse(
+                    $currentDate . ' 07:00:00'
+                )->addDay();
 
-            if ($unitData->isEmpty()) {
-                $current = $shiftStart->copy();
-                while ($current->lt($effectiveShiftEnd)) {
+            } else {
+                $dailyShiftStart = Carbon::parse(
+                    $currentDate . ' 07:00:00'
+                );
 
-                    $nextHour = $current
-                        ->copy()
-                        ->addHour();
+                $dailyShiftEnd = Carbon::parse(
+                    $currentDate . ' 19:00:00'
+                );
+            }
 
-                    if ($nextHour->gt($effectiveShiftEnd)) {
-                        $nextHour = $effectiveShiftEnd->copy();
-                    }
-                    $duration = $current->diffInSeconds($nextHour) / 60;
-                    $hour = (int) $current->format('H');
-                    $nextHourNumber = ($hour + 1) % 24;
-                    $slot = sprintf(
-                        '%02d-%02d',
-                        $hour,
-                        $nextHourNumber
-                    );
-
-                    if (in_array($slot, $hours)) {
-                        $addToPivot(
-                            $slot,
-                            'Standby',
-                            $unitId,
-                            $duration
-                        );
-                    }
-                    $current = $nextHour;
-                }
+            if ($now->lt($dailyShiftStart)) {
+                $loopDate->addDay();
                 continue;
             }
 
-            $lastEnd = $shiftStart->copy();
-            foreach ($unitData as $row) {
+            $effectiveEnd = $dailyShiftEnd->copy();
+            if (
+                $now->betweenIncluded(
+                    $dailyShiftStart,
+                    $dailyShiftEnd
+                )
+            ) {
+                $effectiveEnd = $now->copy();
+            }
 
-                $start = Carbon::parse(
-                    $row->OPR_REPORTTIME
-                );
 
-                $end = Carbon::parse(
-                    $row->OPR_ENDTIME
-                );
+            if ($effectiveEnd->lte($dailyShiftStart)) {
+                $loopDate->addDay();
+                continue;
+            }
 
-                if ($end->lte($start)) {
+            $dayPivot = [];
+            $addToDayPivot = function (
+                $slot,
+                $status,
+                $unit,
+                $duration
+            ) use (&$dayPivot) {
+
+                if ($duration <= 0) {
+                    return;
+                }
+
+                if (!isset($dayPivot[$slot])) {
+                    $dayPivot[$slot] = [];
+                }
+
+                if (!isset($dayPivot[$slot][$status])) {
+                    $dayPivot[$slot][$status] = [];
+                }
+
+                if (!isset($dayPivot[$slot][$status][$unit])) {
+                    $dayPivot[$slot][$status][$unit] = 0;
+                }
+
+                $dayPivot[$slot][$status][$unit] += $duration;
+            };
+
+            foreach ($units as $unit) {
+                $unitId = $unit['id'];
+                $unitData = $dataByUnit
+                    ->get($unitId, collect())
+                    ->filter(function ($row) use (
+                        $dailyShiftStart,
+                        $effectiveEnd
+                    ) {
+
+                        $start = Carbon::parse(
+                            $row->OPR_REPORTTIME
+                        );
+
+                        $end = Carbon::parse(
+                            $row->OPR_ENDTIME
+                        );
+
+                        return
+                            $end->gt($dailyShiftStart)
+                            &&
+                            $start->lt($effectiveEnd)
+                            &&
+                            $end->gt($start);
+                    })
+                    ->sortBy('OPR_REPORTTIME')
+                    ->values();
+
+                if ($unitData->isEmpty()) {
+                    $current = $dailyShiftStart->copy();
+                    while ($current->lt($effectiveEnd)) {
+                        $nextHour = $current
+                            ->copy()
+                            ->addHour();
+
+                        if ($nextHour->gt($effectiveEnd)) {
+                            $nextHour = $effectiveEnd->copy();
+                        }
+
+                        $duration =
+                            $current->diffInSeconds($nextHour)
+                            / 60;
+
+                        $hour = (int) $current->format('H');
+
+                        $slot = sprintf(
+                            '%02d-%02d',
+                            $hour,
+                            ($hour + 1) % 24
+                        );
+
+                        if (in_array($slot, $hours)) {
+
+                            $addToDayPivot(
+                                $slot,
+                                'Standby',
+                                $unitId,
+                                $duration
+                            );
+                        }
+
+                        $current = $nextHour;
+                    }
+
                     continue;
                 }
-                if ($end->lte($shiftStart)) {
-                    continue;
-                }
 
-                if ($start->gte($effectiveShiftEnd)) {
-                    continue;
-                }
+                $lastEnd = $dailyShiftStart->copy();
+                foreach ($unitData as $row) {
+                    $start = Carbon::parse(
+                        $row->OPR_REPORTTIME
+                    );
 
-                if ($start->lt($shiftStart)) {
-                    $start = $shiftStart->copy();
-                }
+                    $end = Carbon::parse(
+                        $row->OPR_ENDTIME
+                    );
 
-                if ($end->gt($effectiveShiftEnd)) {
-                    $end = $effectiveShiftEnd->copy();
-                }
+                    if ($start->lt($dailyShiftStart)) {
+                        $start = $dailyShiftStart->copy();
+                    }
 
-                if ($start->gt($lastEnd)) {
+                    if ($end->gt($effectiveEnd)) {
+                        $end = $effectiveEnd->copy();
+                    }
 
-                    $gapStart = $lastEnd->copy();
-                    $gapEnd   = $start->copy();
 
-                    $currentGap =
-                        $gapStart->copy()->startOfHour();
+                    if ($end->lte($start)) {
+                        continue;
+                    }
+                    if ($start->gt($lastEnd)) {
+                        $gapStart = $lastEnd->copy();
+                        $gapEnd   = $start->copy();
 
-                    while ($currentGap->lt($gapEnd)) {
+                        $currentGap = $gapStart->copy()->startOfHour();
+
+                        while ($currentGap->lt($gapEnd)) {
+                            $nextHour = $currentGap->copy()->addHour();
+
+                            $overlapStart =
+                                $gapStart->greaterThan($currentGap)
+                                    ? $gapStart->copy()
+                                    : $currentGap->copy();
+
+                            $overlapEnd =
+                                $gapEnd->lessThan($nextHour)
+                                    ? $gapEnd->copy()
+                                    : $nextHour->copy();
+
+
+                            if ($overlapEnd->gt($overlapStart)) {
+
+                                $duration =
+                                    $overlapStart
+                                        ->diffInSeconds(
+                                            $overlapEnd
+                                        ) / 60;
+
+                                $hour =
+                                    (int) $currentGap->format('H');
+
+                                $slot = sprintf(
+                                    '%02d-%02d',
+                                    $hour,
+                                    ($hour + 1) % 24
+                                );
+
+                                if (in_array($slot, $hours)) {
+
+                                    $addToDayPivot(
+                                        $slot,
+                                        'Standby',
+                                        $unitId,
+                                        $duration
+                                    );
+                                }
+                            }
+
+                            $currentGap = $nextHour;
+                        }
+                    }
+
+                    $status = trim(
+                        $row->VSA_GROUPDESC ?? ''
+                    );
+
+                    if (!in_array($status, $statuses)) {
+                        $status = 'Standby';
+                    }
+
+                    $current = $start->copy()->startOfHour();
+                    while ($current->lt($end)) {
 
                         $nextHour =
-                            $currentGap->copy()->addHour();
+                            $current->copy()->addHour();
+
+                        $overlapStart =
+                            $start->greaterThan($current)
+                                ? $start->copy()
+                                : $current->copy();
+
+                        $overlapEnd =
+                            $end->lessThan($nextHour)
+                                ? $end->copy()
+                                : $nextHour->copy();
+
+
+                        if ($overlapEnd->gt($overlapStart)) {
+
+                            $duration =
+                                $overlapStart
+                                    ->diffInSeconds(
+                                        $overlapEnd
+                                    ) / 60;
+
+                            $hour =
+                                (int) $current->format('H');
+
+                            $slot = sprintf(
+                                '%02d-%02d',
+                                $hour,
+                                ($hour + 1) % 24
+                            );
+
+
+                            if (in_array($slot, $hours)) {
+
+                                $addToDayPivot(
+                                    $slot,
+                                    $status,
+                                    $unitId,
+                                    $duration
+                                );
+                            }
+                        }
+
+                        $current = $nextHour;
+                    }
+
+
+                    if ($end->gt($lastEnd)) {
+                        $lastEnd = $end->copy();
+                    }
+                }
+
+                if ($lastEnd->lt($effectiveEnd)) {
+                    $gapStart = $lastEnd->copy();
+                    $gapEnd   = $effectiveEnd->copy();
+                    $currentGap = $gapStart->copy()->startOfHour();
+
+                    while ($currentGap->lt($gapEnd)) {
+                        $nextHour = $currentGap->copy()->addHour();
 
                         $overlapStart =
                             $gapStart->greaterThan($currentGap)
@@ -406,24 +611,23 @@ class StatusAvailabilityController extends Controller
 
                             $duration =
                                 $overlapStart
-                                    ->diffInSeconds($overlapEnd)
-                                    / 60;
+                                    ->diffInSeconds(
+                                        $overlapEnd
+                                    ) / 60;
 
                             $hour =
                                 (int) $currentGap->format('H');
 
-                            $nextHourNumber =
-                                ($hour + 1) % 24;
-
                             $slot = sprintf(
                                 '%02d-%02d',
                                 $hour,
-                                $nextHourNumber
+                                ($hour + 1) % 24
                             );
+
 
                             if (in_array($slot, $hours)) {
 
-                                $addToPivot(
+                                $addToDayPivot(
                                     $slot,
                                     'Standby',
                                     $unitId,
@@ -435,134 +639,83 @@ class StatusAvailabilityController extends Controller
                         $currentGap = $nextHour;
                     }
                 }
+            }
 
-                $status = trim(
-                    $row->VSA_GROUPDESC ?? ''
+            $currentHour = $dailyShiftStart->copy();
+            while ($currentHour->lt($effectiveEnd)) {
+                $nextHour = $currentHour->copy()->addHour();
+
+                if ($nextHour->gt($effectiveEnd)) {
+                    $nextHour = $effectiveEnd->copy();
+                }
+                $hour = (int) $currentHour->format('H');
+
+                $slot = sprintf(
+                    '%02d-%02d',
+                    $hour,
+                    ($hour + 1) % 24
                 );
 
-                if (!in_array($status, $statuses)) {
-                    $status = 'Standby';
-                }
+                if (in_array($slot, $hours)) {
 
-                $current = $start
-                    ->copy()
-                    ->startOfHour();
+                    $expectedMinutes =
+                        $currentHour->diffInSeconds(
+                            $nextHour
+                        ) / 60;
 
-                while ($current->lt($end)) {
-                    $nextHour =
-                        $current->copy()->addHour();
-
-                    $overlapStart =
-                        $start->greaterThan($current)
-                            ? $start->copy()
-                            : $current->copy();
-
-                    $overlapEnd =
-                        $end->lessThan($nextHour)
-                            ? $end->copy()
-                            : $nextHour->copy();
+                    foreach ($units as $unit) {
+                        $unitId = $unit['id'];
+                        $usedMinutes = 0;
+                        if (isset($dayPivot[$slot])) {
+                            foreach ($statuses as $status) {
+                                $usedMinutes +=
+                                    $dayPivot[$slot][$status][$unitId]
+                                    ?? 0;
+                            }
+                        }
 
 
-                    if ($overlapEnd->gt($overlapStart)) {
-
-                        $duration =
-                            $overlapStart
-                                ->diffInSeconds($overlapEnd)
-                                / 60;
-
-                        $hour =
-                            (int) $current->format('H');
-
-                        $nextHourNumber =
-                            ($hour + 1) % 24;
-
-                        $slot = sprintf(
-                            '%02d-%02d',
-                            $hour,
-                            $nextHourNumber
-                        );
-
-                        if (in_array($slot, $hours)) {
-
-                            $addToPivot(
+                        if ($usedMinutes < $expectedMinutes) {
+                            $remaining = $expectedMinutes - $usedMinutes;
+                            $addToDayPivot(
                                 $slot,
-                                $status,
+                                'Standby',
                                 $unitId,
-                                $duration
+                                $remaining
                             );
                         }
                     }
-                    $current = $nextHour;
                 }
-                if ($end->gt($lastEnd)) {
-                    $lastEnd = $end->copy();
+
+                $currentHour = $nextHour;
+            }
+
+            foreach ($dayPivot as $slot => $statusesData) {
+                foreach ($statusesData as $status => $unitsData) {
+                    foreach ($unitsData as $unitId => $duration) {
+                        $addToPivot(
+                            $slot,
+                            $status,
+                            $unitId,
+                            $duration
+                        );
+                    }
                 }
             }
 
+
+            $loopDate->addDay();
         }
-        foreach ($hours as $slot) {
-            foreach ($units as $unit) {
-                $unitId = $unit['id'];
-                $usedMinutes = 0;
-                if (isset($pivot[$slot])) {
-                    foreach ($statuses as $status) {
-                        if (
-                            isset(
-                                $pivot[$slot][$status][$unitId]
-                            )
-                        ) {
 
-                            $usedMinutes += $pivot[$slot][$status][$unitId];
-                        }
-                    }
-                }
-                $expectedMinutes = 60;
-                if (
-                    $now->betweenIncluded(
-                        $shiftStart,
-                        $shiftEnd
-                    )
-                ) {
-
-                    [$hourStart] = array_map(
-                        'intval',
-                        explode('-', $slot)
-                    );
-
-                    $currentHour =
-                        (int) $now->format('H');
-
-                    if ($hourStart == $currentHour) {
-
-                        $expectedMinutes =
-                            $now->minute +
-                            ($now->second / 60);
-                    }
-                }
-                if ($usedMinutes < $expectedMinutes) {
-                    $remaining = $expectedMinutes - $usedMinutes;
-
-                    $addToPivot(
-                        $slot,
-                        'Standby',
-                        $unitId,
-                        $remaining
-                    );
-                }
-            }
-        }
         $orderedPivot = [];
-
         foreach ($hours as $slot) {
-
-            if (isset($pivot[$slot])) {
-                $orderedPivot[$slot] =
-                    $pivot[$slot];
-            }
+            $orderedPivot[$slot] =
+                $pivot[$slot] ?? [];
         }
 
         $pivot = $orderedPivot;
         $totals = [];
+
         foreach ($pivot as $hour => $statusesData) {
             foreach ($statusesData as $status => $unitsData) {
                 foreach ($unitsData as $unit => $duration) {
@@ -583,13 +736,16 @@ class StatusAvailabilityController extends Controller
 
         unset($unitsData, $duration);
 
-        $baseHours = 12;
+        $baseHours = $dayCount * 12;
         $averages = [];
         foreach ($statuses as $status) {
             foreach ($units as $unit) {
                 $unitId = $unit['id'];
-                $totalDuration = $totals[$status][$unitId] ?? 0;
-                $averages[$status][$unitId] = round($totalDuration / $baseHours, 2);
+                $total = $totals[$status][$unitId] ?? 0;
+                $averages[$status][$unitId] =
+                    $baseHours > 0
+                        ? round($total / $baseHours, 2)
+                        : 0;
             }
         }
 
