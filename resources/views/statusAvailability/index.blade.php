@@ -936,8 +936,7 @@
         let html = '';
 
         // =====================================================
-        // PER HOUR SEGMENT
-        // SELALU TOTAL DALAM JAM
+        // PER HOUR
         // =====================================================
 
         res.hours.forEach(function (hour) {
@@ -997,7 +996,7 @@
 
 
         // =====================================================
-        // RATA-RATA HOURLY BASE
+        // RATA-RATA PER JAM
         // =====================================================
 
         html += buildSummaryRows(
@@ -1011,9 +1010,19 @@
     }
 
     function buildSummaryRows(res, title, data) {
+
         let html = '';
+
         res.statuses.forEach(function (status, index) {
-            html += '<tr class="table-warning">';
+
+            html += `
+                <tr class="summary-row">
+            `;
+
+            // =================================================
+            // LABEL TOTAL / RATA-RATA
+            // =================================================
+
             if (index === 0) {
 
                 html += `
@@ -1026,23 +1035,37 @@
                 `;
             }
 
+
+            // =================================================
+            // STATUS
+            // =================================================
+
             html += `
                 <td class="text-start fw-bold ps-3">
                     ${status}
                 </td>
             `;
 
+
+            // =================================================
+            // UNIT
+            // =================================================
+
             res.units.forEach(function (unit) {
+
                 let value = 0;
+
                 if (
                     data &&
                     data[status] &&
                     data[status][unit.id] !== undefined
                 ) {
+
                     value = Number(
                         data[status][unit.id]
                     );
                 }
+
                 html += `
                     <td>${formatNumber(value)}</td>
                 `;

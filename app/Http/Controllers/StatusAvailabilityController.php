@@ -563,67 +563,118 @@ class StatusAvailabilityController extends Controller
         }
 
         $pivot = $orderedPivot;
-        $totals = [];
+        // =====================================================
+// TOTAL DURASI PER STATUS & UNIT
+// =====================================================
 
-        foreach ($pivot as $hour => $statusesData) {
-            foreach ($statusesData as $status => $unitsData) {
-                foreach ($unitsData as $unit => $duration) {
-                    if (!isset($totals[$status][$unit])) {
-                        $totals[$status][$unit] = 0;
-                    }
-                    $totals[$status][$unit] += $duration;
-                }
-            }
-        }
+$totals = [];
 
-        $hourFrequency = [];
-        foreach ($pivot as $hour => $statusesData) {
-            foreach ($statusesData as $status => $unitsData) {
-                foreach ($unitsData as $unit => $duration) {
-                    if (!isset($hourFrequency[$status][$unit])) {
-                        $hourFrequency[$status][$unit] = 0;
-                    }
-                    $hourFrequency[$status][$unit]++;
-                }
-            }
-        }
+foreach ($pivot as $hour => $statusesData) {
 
-        foreach ($totals as $status => &$unitsData) {
-            foreach ($unitsData as $unit => &$duration) {
-                $duration = round($duration / 60, 2);
-            }
-        }
+    foreach ($statusesData as $status => $unitsData) {
 
-        unset($unitsData, $duration);
-        $averages = [];
-        foreach ($totals as $status => $unitsData) {
-            foreach ($unitsData as $unit => $totalDuration) {
-                $countHour = $hourFrequency[$status][$unit] ?? 0;
-                if ($countHour > 0) {
-                    $averages[$status][$unit] = round($totalDuration / $countHour, 2);
-                } else {
-                    $averages[$status][$unit] = 0;
-                }
-            }
-        }
-        foreach ($pivot as $hour => &$statusesData) {
-            foreach ($statusesData as $status => &$unitsData) {
-                foreach ($unitsData as $unit => &$duration) {
-                    $duration = round($duration / 60, 2);
-                }
-            }
-        }
-        unset($statusesData, $unitsData, $duration);
+        foreach ($unitsData as $unit => $duration) {
 
-        return response()->json([
-            'units'         => $units,
-            'hours'         => $hours,
-            'statuses'      => $statuses,
-            'pivot'         => $pivot,
-            'totals'        => $totals,
-            'averages'      => $averages,
-            'hourFrequency' => $hourFrequency,
-            'dayCount'      => $dayCount
-        ]);
+            if (!isset($totals[$status][$unit])) {
+                $totals[$status][$unit] = 0;
+            }
+
+            $totals[$status][$unit] += $duration;
+        }
+    }
+}
+
+
+// =====================================================
+// KONVERSI TOTAL DARI MENIT → JAM
+// =====================================================
+
+foreach ($totals as $status => &$unitsData) {
+
+    foreach ($unitsData as $unit => &$duration) {
+
+        $duration = round($duration / 60, 2);
+    }
+}
+
+unset($unitsData, $duration);
+
+
+// =====================================================
+// HITUNG JUMLAH JAM BASIS
+//
+// Shift Siang = 07:00 - 19:00 = 12 jam
+// Shift Malam = 19:00 - 07:00 = 12 jam
+// =====================================================
+
+$baseHours = 12;
+
+
+// =====================================================
+// RATA-RATA HOURLY BASE
+//
+// Average = Total Durasi Status / 12 Jam
+//
+// Contoh:
+// Ready = 6.56 / 12 = 0.55 jam
+// Standby = 4.93 / 12 = 0.41 jam
+// Delay = 0.51 / 12 = 0.04 jam
+//
+// Total Average = 1.00 jam
+// =====================================================
+
+$averages = [];
+
+foreach ($statuses as $status) {
+
+    foreach ($units as $unit) {
+
+        $unitId = $unit['id'];
+
+        $totalDuration =
+            $totals[$status][$unitId] ?? 0;
+
+        $averages[$status][$unitId] =
+            round($totalDuration / $baseHours, 2);
+    }
+}
+
+
+// =====================================================
+// PIVOT PER JAM
+//
+// Tetap TOTAL pada hour segment.
+// Tidak dibagi jumlah event.
+// Tidak dibagi frequency.
+// Hanya dikonversi menit → jam.
+// =====================================================
+
+foreach ($pivot as $hour => &$statusesData) {
+
+    foreach ($statusesData as $status => &$unitsData) {
+
+        foreach ($unitsData as $unit => &$duration) {
+
+            $duration = round($duration / 60, 2);
+        }
+    }
+}
+
+unset($statusesData, $unitsData, $duration);
+
+
+// =====================================================
+// RESPONSE
+// =====================================================
+
+return response()->json([
+    'units'     => $units,
+    'hours'     => $hours,
+    'statuses'  => $statuses,
+    'pivot'     => $pivot,
+    'totals'    => $totals,
+    'averages'  => $averages,
+    'dayCount'  => $dayCount
+]);
     }
 }
