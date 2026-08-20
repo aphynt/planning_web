@@ -566,8 +566,11 @@ class StatusAvailabilityController extends Controller
         $totals = [];
 
 foreach ($pivot as $hour => $statusesData) {
+
     foreach ($statusesData as $status => $unitsData) {
+
         foreach ($unitsData as $unit => $duration) {
+
             if (!isset($totals[$status][$unit])) {
                 $totals[$status][$unit] = 0;
             }
@@ -577,59 +580,86 @@ foreach ($pivot as $hour => $statusesData) {
     }
 }
 
-$frequency = [];
+
+// =====================================================
+// HOURLY FREQUENCY
+// Menghitung berapa hour segment yang memiliki data
+// =====================================================
+
+$hourFrequency = [];
 
 foreach ($pivot as $hour => $statusesData) {
+
     foreach ($statusesData as $status => $unitsData) {
+
         foreach ($unitsData as $unit => $duration) {
-            if (!isset($frequency[$status][$unit])) {
-                $frequency[$status][$unit] = 0;
+
+            if (!isset($hourFrequency[$status][$unit])) {
+                $hourFrequency[$status][$unit] = 0;
             }
 
-            $frequency[$status][$unit]++;
+            // 1 data = 1 hour segment
+            $hourFrequency[$status][$unit]++;
         }
     }
 }
 
-if ($aggregation === 'average') {
-    foreach ($totals as $status => &$unitsData) {
-        foreach ($unitsData as $unit => &$duration) {
-            $count = $frequency[$status][$unit] ?? 0;
 
-            if ($count > 0) {
-                $duration = $duration / $count;
-            } else {
-                $duration = 0;
-            }
+// =====================================================
+// TOTAL DALAM JAM
+// =====================================================
 
-            $duration = round($duration / 60, 2);
-        }
+foreach ($totals as $status => &$unitsData) {
+
+    foreach ($unitsData as $unit => &$duration) {
+
+        $duration = round($duration / 60, 2);
     }
-
-    unset($unitsData, $duration);
-} else {
-    foreach ($totals as $status => &$unitsData) {
-        foreach ($unitsData as $unit => &$duration) {
-            $duration = round($duration / 60, 2);
-        }
-    }
-
-    unset($unitsData, $duration);
 }
+
+unset($unitsData, $duration);
+
+
+// =====================================================
+// RATA-RATA HOURLY BASE
+//
+// Average = Total Duration / Jumlah Hour Segment
+// =====================================================
+
+$averages = [];
+
+foreach ($totals as $status => $unitsData) {
+
+    foreach ($unitsData as $unit => $totalDuration) {
+
+        $countHour = $hourFrequency[$status][$unit] ?? 0;
+
+        if ($countHour > 0) {
+
+            $averages[$status][$unit] =
+                round($totalDuration / $countHour, 2);
+
+        } else {
+
+            $averages[$status][$unit] = 0;
+        }
+    }
+}
+
+
+// =====================================================
+// PIVOT PER JAM
+// TETAP TOTAL PER HOUR SEGMENT
+// =====================================================
 
 foreach ($pivot as $hour => &$statusesData) {
+
     foreach ($statusesData as $status => &$unitsData) {
+
         foreach ($unitsData as $unit => &$duration) {
-            if ($aggregation === 'average') {
-                $count = $frequency[$status][$unit] ?? 0;
 
-                if ($count > 0) {
-                    $duration = $duration / $count;
-                } else {
-                    $duration = 0;
-                }
-            }
-
+            // Hanya konversi menit → jam
+            // Tidak dibagi frequency/event
             $duration = round($duration / 60, 2);
         }
     }
@@ -637,15 +667,20 @@ foreach ($pivot as $hour => &$statusesData) {
 
 unset($statusesData, $unitsData, $duration);
 
+
+// =====================================================
+// RESPONSE
+// =====================================================
+
 return response()->json([
-    'units'       => $units,
-    'hours'       => $hours,
-    'statuses'    => $statuses,
-    'pivot'       => $pivot,
-    'totals'      => $totals,
-    'frequency'   => $frequency,
-    'aggregation' => $aggregation,
-    'dayCount'    => $dayCount
+    'units'         => $units,
+    'hours'         => $hours,
+    'statuses'      => $statuses,
+    'pivot'         => $pivot,
+    'totals'        => $totals,
+    'averages'      => $averages,
+    'hourFrequency' => $hourFrequency,
+    'dayCount'      => $dayCount
 ]);
     }
 }

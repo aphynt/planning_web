@@ -88,13 +88,13 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2">
+                            {{-- <div class="col-6 col-md-1 mb-2">
                                 <label for="aggregation">Tampilan</label>
                                 <select class="form-select" name="aggregation" id="aggregation">
                                     <option value="total" selected>Total</option>
                                     <option value="average">Rata-rata</option>
                                 </select>
-                            </div>
+                            </div> --}}
                             <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
                                 <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
                             </div>
@@ -853,7 +853,7 @@
             data: {
                 tanggalStatus: $('#tanggalStatus').val(),
                 shift: $('#shift').val(),
-                aggregation: $('#aggregation').val()
+                // aggregation: $('#aggregation').val()
             },
 
             success: function (res) {
@@ -932,13 +932,22 @@
     }
 
     function buildBody(res) {
+
         let html = '';
 
+        // =====================================================
+        // PER HOUR SEGMENT
+        // SELALU TOTAL DALAM JAM
+        // =====================================================
+
         res.hours.forEach(function (hour) {
+
             res.statuses.forEach(function (status, index) {
+
                 html += '<tr>';
 
-                if (index == 0) {
+                if (index === 0) {
+
                     html += `
                         <td rowspan="${res.statuses.length}">
                             ${hour}
@@ -953,6 +962,7 @@
                 `;
 
                 res.units.forEach(function (unit) {
+
                     let value = 0;
 
                     if (
@@ -960,7 +970,9 @@
                         res.pivot[hour][status] &&
                         res.pivot[hour][status][unit.id] !== undefined
                     ) {
-                        value = res.pivot[hour][status][unit.id];
+                        value = Number(
+                            res.pivot[hour][status][unit.id]
+                        );
                     }
 
                     html += `
@@ -972,8 +984,86 @@
             });
         });
 
-        buildTotal(html, res);
+
+        // =====================================================
+        // TOTAL
+        // =====================================================
+
+        html += buildSummaryRows(
+            res,
+            'Total',
+            res.totals
+        );
+
+
+        // =====================================================
+        // RATA-RATA HOURLY BASE
+        // =====================================================
+
+        html += buildSummaryRows(
+            res,
+            'Rata-rata',
+            res.averages
+        );
+
+
+        $('#tblBody').html(html);
     }
+
+    function buildSummaryRows(res, title, data) {
+
+    let html = '';
+
+    res.statuses.forEach(function (status, index) {
+
+        html += '<tr class="table-warning">';
+
+        // Label Total / Rata-rata
+        if (index === 0) {
+
+            html += `
+                <td
+                    rowspan="${res.statuses.length}"
+                    class="text-start fw-bold ps-3 align-middle"
+                >
+                    ${title}
+                </td>
+            `;
+        }
+
+        // Status
+        html += `
+            <td class="text-start fw-bold ps-3">
+                ${status}
+            </td>
+        `;
+
+
+        // Unit
+        res.units.forEach(function (unit) {
+
+            let value = 0;
+
+            if (
+                data &&
+                data[status] &&
+                data[status][unit.id] !== undefined
+            ) {
+                value = Number(
+                    data[status][unit.id]
+                );
+            }
+
+            html += `
+                <td>${formatNumber(value)}</td>
+            `;
+        });
+
+        html += '</tr>';
+    });
+
+    return html;
+}
 
     function buildTotal(html, res) {
         res.statuses.forEach(function (status) {
