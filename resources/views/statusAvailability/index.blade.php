@@ -844,6 +844,7 @@
         }
 
     function loadAvailability() {
+
         $('#loadingOverlay').css('display', 'flex');
 
         $.ajax({
@@ -854,15 +855,45 @@
                 shift: $('#shift').val(),
                 aggregation: $('#aggregation').val()
             },
+
             success: function (res) {
-                buildTable(res);
-                buildPATable(res);
-                buildChart(res);
-                buildStatusPieChart(res);
-                buildAvailabilityRateChart(res);
+
+                console.log('API SUCCESS:', res);
+
+                try {
+
+                    buildTable(res);
+                    buildPATable(res);
+
+                    // Jalankan hanya jika element chart memang tersedia
+                    if (document.querySelector('#availability-chart')) {
+                        buildChart(res);
+                    }
+
+                    if (document.querySelector('#status-pie-chart')) {
+                        buildStatusPieChart(res);
+                    }
+
+                    if (document.querySelector('#availability-rate-chart')) {
+                        buildAvailabilityRateChart(res);
+                    }
+
+                } catch (error) {
+
+                    console.error('ERROR SAAT RENDER DATA:', error);
+
+                }
+            },
+
+            error: function (xhr, status, error) {
+                console.error('API ERROR');
+                console.error('Status:', xhr.status);
+                console.error('Response:', xhr.responseText);
+                console.error('Error:', error);
+
             },
             complete: function () {
-                $('#loadingOverlay').hide();
+                $('#loadingOverlay').stop(true, true).fadeOut(200);
             }
         });
     }
