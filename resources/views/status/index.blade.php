@@ -220,9 +220,18 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100" style="padding-top:10px;padding-bottom:10px;" >
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
                                     Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
                                 </button>
                             </div>
                         </div>
@@ -410,40 +419,35 @@
     }
 
     function buildBody(res) {
-
         let html = '';
         res.hours.forEach(function (hour) {
-            const hourData =
-                res.pivot[hour] || {};
+            const hourData = res.pivot[hour] || {};
             let totalRows = 0;
             res.statuses.forEach(function (status) {
-                if (
-                    hourData[status] &&
-                    Object.keys(
-                        hourData[status]
-                    ).length > 0
-                ) {
 
-                    totalRows +=
-                        Object.keys(
-                            hourData[status]
-                        ).length;
-                }
+                const activities =
+                    res.activities &&
+                    res.activities[status]
+                        ? res.activities[status]
+                        : [];
 
+                totalRows += activities.length;
             });
+
             if (totalRows === 0) {
                 html += `
                     <tr>
+
                         <td class="hour-cell">
                             ${hour}
                         </td>
+
                         <td
                             colspan="2"
                             class="text-center text-muted"
                         >
                             -
                         </td>
-
                 `;
 
                 res.units.forEach(function () {
@@ -451,33 +455,35 @@
                         <td class="duration-cell">
                             -
                         </td>
-
                     `;
                 });
+
                 html += `
                     </tr>
                 `;
+
                 return;
             }
+
             let hourRowIndex = 0;
             res.statuses.forEach(function (status) {
-                const statusData = hourData[status] || {};
-                const activities = Object.keys(
-                        statusData
-                    );
-                if (
-                    activities.length === 0
-                ) {
+                const activities =
+                    res.activities &&
+                    res.activities[status]
+                        ? res.activities[status]
+                        : [];
+
+                if (activities.length === 0) {
                     return;
                 }
+
                 activities.forEach(function (
                     activity,
                     activityIndex
                 ) {
                     html += '<tr>';
-                    if (
-                        hourRowIndex === 0
-                    ) {
+                    if (hourRowIndex === 0) {
+
                         html += `
                             <td
                                 rowspan="${totalRows}"
@@ -485,13 +491,11 @@
                             >
                                 ${hour}
                             </td>
-
                         `;
 
                     }
-                    if (
-                        activityIndex === 0
-                    ) {
+
+                    if (activityIndex === 0) {
                         html += `
                             <td
                                 rowspan="${activities.length}"
@@ -499,35 +503,30 @@
                             >
                                 ${status}
                             </td>
-
                         `;
-                    }
 
+                    }
                     html += `
                         <td class="activity-cell">
                             ${activity}
                         </td>
-
                     `;
 
                     res.units.forEach(function (unit) {
                         let value = 0;
+
                         if (
-                            statusData[activity] &&
-                            statusData[activity][unit.id]
-                                !== undefined
+                            hourData[status] &&
+                            hourData[status][activity] &&
+                            hourData[status][activity][unit.id] !== undefined
                         ) {
 
-                            value =
-                                Number(
-                                    statusData[
-                                        activity
-                                    ][
-                                        unit.id
-                                    ]
-                                );
+                            value = Number(
+                                hourData[status][activity][unit.id]
+                            );
 
                         }
+
                         html += `
                             <td class="duration-cell">
                                 ${
@@ -537,18 +536,22 @@
                                 }
                             </td>
                         `;
+
                     });
                     html += '</tr>';
                     hourRowIndex++;
                 });
+
             });
+
         });
+
         buildTotal(
             html,
             res
         );
-
     }
+
     function buildTotal(
         html,
         res
@@ -655,6 +658,65 @@
         $('#cariStatus').click(function () {
             loadStatus();
         });
+    });
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+        const detailTable = document.getElementById('tblAvailability');
+
+        if (detailTable) {
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+            const range = XLSX.utils.decode_range(detailSheet['!ref']);
+            const columnWidths = [];
+
+            for (let C = range.s.c; C <= range.e.c; C++) {
+                let maxWidth = 0;
+
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    const cellAddress = XLSX.utils.encode_cell({
+                        r: R,
+                        c: C
+                    });
+
+                    const cell = detailSheet[cellAddress];
+
+                    if (cell && cell.v !== undefined && cell.v !== null) {
+                        const value = String(cell.v);
+
+                        // Hitung panjang isi cell
+                        maxWidth = Math.max(maxWidth, value.length);
+                    }
+                }
+
+                // Tambahkan sedikit ruang
+                columnWidths.push({
+                    wch: Math.min(maxWidth + 2, 50)
+                });
+            }
+
+            detailSheet['!cols'] = columnWidths;
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Detail Status'
+            );
+        }
+
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Detail Status Fuel Truck_${tanggal}.xlsx`
+        );
     });
 
 </script>

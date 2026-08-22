@@ -95,8 +95,19 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -104,7 +115,6 @@
             </div>
         </div>
 
-        {{-- Main content --}}
         <div class="row align-items-start">
              <div class="col-md-6">
                 <div class="card">
@@ -128,23 +138,15 @@
                 </div>
             </div>
 
-            {{-- RIGHT: All + masing-masing Fuel Station --}}
             <div class="col-md-6">
-<div class="row">
+                <div class="row">
                     <div class="col-12">
                         <div class="card">
-
-                <div id="fuelStationTables">
-
-                    {{-- Diisi melalui JavaScript --}}
-
+                        <div id="fuelStationTables"></div>
+                        </div>
+                    </div>
                 </div>
-                </div>
-                </div>
-                </div>
-
             </div>
-
         </div>
 
     </div>
@@ -153,31 +155,17 @@
 @include('layout.footer')
 
 <script>
-    /*
-    |--------------------------------------------------------------------------
-    | Flatpickr
-    |--------------------------------------------------------------------------
-    */
     document.getElementById('tanggalStatus').flatpickr({
         mode: 'range',
         dateFormat: 'Y-m-d'
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Set tanggal dari query string
-    |--------------------------------------------------------------------------
-    */
     document.addEventListener('DOMContentLoaded', function () {
-
         const urlParams = new URLSearchParams(window.location.search);
         const rangeDate = urlParams.get('rangeDate');
         const rangeInput = document.getElementById('tanggalStatus');
-
         if (rangeDate) {
-
             rangeInput.value = rangeDate;
-
         } else {
 
             const today = new Date();
@@ -186,18 +174,11 @@
             const mm = String(today.getMonth() + 1).padStart(2, '0');
             const dd = String(today.getDate()).padStart(2, '0');
 
-            rangeInput.placeholder =
-                `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
+            rangeInput.placeholder = `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
         }
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Escape HTML
-    |--------------------------------------------------------------------------
-    */
     function escapeHtml(value) {
-
         return String(value ?? '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -206,15 +187,8 @@
             .replace(/'/g, '&#039;');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Status class
-    |--------------------------------------------------------------------------
-    */
     function getUnitStatusClass(status) {
-
         switch (String(status || '').toLowerCase()) {
-
             case 'ready':
                 return 'table-primary';
 
@@ -232,15 +206,7 @@
         }
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | LEFT TABLE
-    |
-    | Jam | Status | FS SM-B1 | FS SM-B2 | Total
-    |--------------------------------------------------------------------------
-    */
     function buildTable(res) {
-
         let header = `
             <tr>
                 <th rowspan="2" class="text-center align-middle">
@@ -282,15 +248,10 @@
         $('#tblHeader').html(header);
 
         let html = '';
-
         res.hours.forEach(function (hour) {
-
             res.units.forEach(function (unit, index) {
-
                 html += '<tr>';
-
                 if (index === 0) {
-
                     html += `
                         <td
                             rowspan="${res.units.length}"
@@ -308,15 +269,11 @@
                 `;
 
                 let rowTotal = 0;
-
                 res.fuelStations.forEach(function (fuelStation) {
-
                     const value = Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
-
                     rowTotal += value;
-
                     html += `
                         <td class="text-center">
                             ${value}
@@ -333,11 +290,6 @@
                 html += '</tr>';
             });
 
-            /*
-            |--------------------------------------------------------------------------
-            | Total per jam
-            |--------------------------------------------------------------------------
-            */
             html += `
                 <tr class="total-row">
                     <td colspan="2" class="text-start">
@@ -346,15 +298,11 @@
             `;
 
             let totalHour = 0;
-
             res.fuelStations.forEach(function (fuelStation) {
-
                 const value = Number(
                     res.totalsByHour?.[hour]?.[fuelStation] || 0
                 );
-
                 totalHour += value;
-
                 html += `
                     <td class="text-center">
                         ${value}
@@ -373,20 +321,6 @@
         $('#tblBody').html(html);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | RIGHT TABLE
-    |
-    | All
-    |   Unit | 07-08 | ... | Total
-    |
-    | FS SM-B1
-    |   Unit | 07-08 | ... | Total
-    |
-    | FS SM-B2
-    |   Unit | 07-08 | ... | Total
-    |--------------------------------------------------------------------------
-    */
     function buildFrequencyTable(
         res,
         title,
@@ -438,13 +372,7 @@
                             <tbody>
         `;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Row unit
-        |--------------------------------------------------------------------------
-        */
         res.units.forEach(function (unit) {
-
             html += `
                 <tr>
                     <td class="text-start">
@@ -453,20 +381,10 @@
             `;
 
             let rowTotal = 0;
-
             res.hours.forEach(function (hour) {
-
                 let value = 0;
-
                 if (fuelStation === null) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ALL
-                    |--------------------------------------------------------------------------
-                    */
                     res.fuelStations.forEach(function (station) {
-
                         value += Number(
                             res.pivot?.[hour]?.[unit]?.[station] || 0
                         );
@@ -474,11 +392,6 @@
 
                 } else {
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SATU FUEL STATION
-                    |--------------------------------------------------------------------------
-                    */
                     value = Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
@@ -501,11 +414,6 @@
             `;
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Total
-        |--------------------------------------------------------------------------
-        */
         html += `
             <tr class="total-row">
                 <td class="text-start">
@@ -516,15 +424,10 @@
         let grandTotal = 0;
 
         res.hours.forEach(function (hour) {
-
             let total = 0;
-
             if (fuelStation === null) {
-
                 res.fuelStations.forEach(function (station) {
-
                     res.units.forEach(function (unit) {
-
                         total += Number(
                             res.pivot?.[hour]?.[unit]?.[station] || 0
                         );
@@ -532,9 +435,7 @@
                 });
 
             } else {
-
                 res.units.forEach(function (unit) {
-
                     total += Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
@@ -542,7 +443,6 @@
             }
 
             grandTotal += total;
-
             html += `
                 <td class="text-center">
                     ${total}
@@ -568,22 +468,9 @@
         return html;
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Build semua tabel kanan
-    |--------------------------------------------------------------------------
-    */
     function buildFuelStationTables(res) {
-
         const container = $('#fuelStationTables');
-
         container.empty();
-
-        /*
-        |--------------------------------------------------------------------------
-        | 1. ALL
-        |--------------------------------------------------------------------------
-        */
         container.append(
             buildFrequencyTable(
                 res,
@@ -592,13 +479,7 @@
             )
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | 2. MASING-MASING FUEL STATION
-        |--------------------------------------------------------------------------
-        */
         res.fuelStations.forEach(function (fuelStation) {
-
             container.append(
                 buildFrequencyTable(
                     res,
@@ -609,11 +490,6 @@
         });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Load data
-    |--------------------------------------------------------------------------
-    */
     function loadFrequency() {
 
         $('#loadingOverlay').css(
@@ -622,11 +498,8 @@
         );
 
         $.ajax({
-
             url: "{{ route('distribusiFrekuensiFuelStation.api') }}",
-
             type: "GET",
-
             data: {
                 tanggalStatus:
                     $('#tanggalStatus').val(),
@@ -636,40 +509,56 @@
             },
 
             success: function (res) {
-
                 buildTable(res);
-
                 buildFuelStationTables(res);
             },
 
             error: function (xhr) {
-
                 console.error(xhr);
-
                 alert(
                     'Gagal mengambil data frekuensi Fuel Station.'
                 );
             },
 
             complete: function () {
-
                 $('#loadingOverlay').hide();
             }
         });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Document ready
-    |--------------------------------------------------------------------------
-    */
     $(document).ready(function () {
-
         loadFrequency();
-
         $('#cariStatus').click(function () {
-
             loadFrequency();
         });
+    });
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+        const detailTable = document.getElementById('tblAvailability');
+        if (detailTable) {
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Frekuensi 1'
+            );
+        }
+
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Distribusi Frekuensi Fuel Station_${tanggal}.xlsx`
+        );
     });
 </script>

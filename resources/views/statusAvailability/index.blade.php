@@ -102,15 +102,26 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            {{-- <div class="col-6 col-md-1 mb-2">
+                            <div class="col-6 col-md-1 mb-2">
                                 <label for="aggregation">Tampilan</label>
                                 <select class="form-select" name="aggregation" id="aggregation">
                                     <option value="total" selected>Total</option>
                                     <option value="average">Rata-rata</option>
                                 </select>
-                            </div> --}}
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            </div>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -119,7 +130,7 @@
         </div>
 
         <div class="row align-items-start">
-            <div class="col-md-6">
+            <div class="col-md-7">
                 <div class="card">
                     <div class="card-body">
                         <div id="loadingOverlay">
@@ -141,7 +152,7 @@
                 </div>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="row">
                     <div class="col-12">
                         <div class="card">
@@ -947,11 +958,11 @@
 
     function buildBody(res) {
         let html = '';
+        const aggregation = $('#aggregation').val();
         res.hours.forEach(function (hour) {
             res.statuses.forEach(function (status, index) {
                 html += '<tr>';
                 if (index === 0) {
-
                     html += `
                         <td rowspan="${res.statuses.length}">
                             ${hour}
@@ -966,26 +977,52 @@
                 `;
 
                 res.units.forEach(function (unit) {
-
                     let value = 0;
-
-                    if (
+                    if (aggregation === 'total') {
+                        if (
                         res.pivot[hour] &&
-                        res.pivot[hour][status] &&
-                        res.pivot[hour][status][unit.id] !== undefined
-                    ) {
-                        value = Number(
-                            res.pivot[hour][status][unit.id]
-                        );
+                            res.pivot[hour][status] &&
+                            res.pivot[hour][status][unit.id] !== undefined
+                        ) {
+                            value = Number(
+                                res.pivot[hour][status][unit.id]
+                            );
+                        }
+
+
                     }
 
+                    else if (aggregation === 'average') {
+                        if (
+                            res.averages &&
+                            res.averages[status] &&
+                            res.averages[status][unit.id] !== undefined
+                        ) {
+                            value = Number(
+                                res.averages[status][unit.id]
+                            );
+                        }
+
+                    }
+                    else {
+                        if (
+                            res.pivot[hour] &&
+                            res.pivot[hour][status] &&
+                            res.pivot[hour][status][unit.id] !== undefined
+                        ) {
+                            value = Number(
+                                res.pivot[hour][status][unit.id]
+                            );
+                        }
+
+                    }
                     html += `
                         <td>${formatNumber(value)}</td>
                     `;
                 });
-
                 html += '</tr>';
             });
+
         });
 
         html += buildSummaryRows(
@@ -999,7 +1036,6 @@
             'Rata-rata',
             res.averages
         );
-
 
         $('#tblBody').html(html);
     }
@@ -1092,5 +1128,90 @@
         $('#cariStatus').click(function () {
             loadAvailability();
         });
+    });
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+        function autoWidthColumns(sheet) {
+            if (!sheet['!ref']) return;
+            const range = XLSX.utils.decode_range(sheet['!ref']);
+            const columnWidths = [];
+
+            for (let C = range.s.c; C <= range.e.c; C++) {
+                let maxWidth = 0;
+
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    const cellAddress = XLSX.utils.encode_cell({
+                        r: R,
+                        c: C
+                    });
+
+                    const cell = sheet[cellAddress];
+
+                    if (
+                        cell &&
+                        cell.v !== undefined &&
+                        cell.v !== null
+                    ) {
+                        const value = String(cell.v);
+
+                        maxWidth = Math.max(
+                            maxWidth,
+                            value.length
+                        );
+                    }
+                }
+                columnWidths.push({
+                    wch: Math.min(maxWidth + 2, 50)
+                });
+            }
+
+            sheet['!cols'] = columnWidths;
+        }
+        const detailTable = document.getElementById('tblAvailability');
+
+        if (detailTable) {
+            const detailSheet =
+                XLSX.utils.table_to_sheet(
+                    detailTable,
+                    {
+                        raw: true
+                    }
+                );
+
+            autoWidthColumns(detailSheet);
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Durasi'
+            );
+        }
+
+        const frequencyTable = document.getElementById('tblPA');
+        if (frequencyTable) {
+            const frequencySheet =
+                XLSX.utils.table_to_sheet(
+                    frequencyTable,
+                    {
+                        raw: true
+                    }
+                );
+
+            autoWidthColumns(frequencySheet);
+            XLSX.utils.book_append_sheet(
+                workbook,
+                frequencySheet,
+                'PA'
+            );
+        }
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Status & Availability_${tanggal}.xlsx`
+        );
     });
 </script>

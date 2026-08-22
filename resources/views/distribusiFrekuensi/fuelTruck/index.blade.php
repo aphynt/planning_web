@@ -92,8 +92,19 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -836,5 +847,79 @@
             loadFrequency();
         });
 
+    });
+
+    $('#exportAllExcel').on('click', function () {
+
+        const workbook = XLSX.utils.book_new();
+        const detailTable = document.getElementById('tblAvailability');
+
+        if (detailTable) {
+
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+
+            // Lebar kolom
+            detailSheet['!cols'] = [
+                { wch: 10 }, // Jam
+                { wch: 15 }, // Status
+                { wch: 30 }, // Activity
+                { wch: 14 }, // Unit 1
+                { wch: 14 }, // Unit 2
+                { wch: 14 }, // Unit 3
+                { wch: 14 }, // Unit 4
+                { wch: 14 }, // dst
+            ];
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Detail Status'
+            );
+        }
+
+        const frequencyTable = document.getElementById('tblPA');
+        if (frequencyTable) {
+            const frequencySheet =
+                XLSX.utils.table_to_sheet(
+                    frequencyTable,
+                    {
+                        raw: true
+                    }
+                );
+
+            frequencySheet['!cols'] = [
+                { wch: 12 }, // Jam
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 14 },
+                { wch: 14 },
+            ];
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                frequencySheet,
+                'Physical Availability'
+            );
+        }
+
+        let tanggal = $('#tanggalStatus').val();
+        if (!tanggal) {
+            tanggal = 'All_Date';
+        } else {
+            tanggal = tanggal
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+        }
+
+        XLSX.writeFile(
+            workbook,
+            `Distribusi_Frekuensi_Fuel_Truck_${tanggal}.xlsx`
+        );
     });
 </script>

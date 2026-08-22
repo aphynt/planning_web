@@ -125,6 +125,51 @@ class StatusController extends Controller
             'Breakdown'
         ];
 
+        $activityMaster = DB::connection('focus')
+            ->table('FLT_VSASTATUSVHCTYPE as A')
+            ->leftJoin(
+                'FLT_VSASTATUS as B',
+                'A.VSA_STATUSID',
+                '=',
+                'B.VSA_STATUSID'
+            )
+            ->leftJoin(
+                'FLT_VSAGROUP as C',
+                'B.VSA_GROUPID',
+                '=',
+                'C.VSA_GROUPID'
+            )
+            ->where('A.VHC_TYPEID', 5)
+            ->where('A.ISENABLED', 1)
+            ->select([
+                'B.VSA_STATUSDESC',
+                'C.VSA_GROUPDESC',
+            ])
+            ->orderBy('B.VSA_GROUPID')
+            ->get();
+
+        $activitiesByStatus = [];
+        foreach ($statuses as $status) {
+            $activitiesByStatus[$status] = [];
+        }
+
+        foreach ($activityMaster as $activity) {
+            $status = trim($activity->VSA_GROUPDESC ?? '');
+            $activityName = trim($activity->VSA_STATUSDESC ?? '');
+            if (
+                $status !== '' &&
+                $activityName !== '' &&
+                isset($activitiesByStatus[$status])
+            ) {
+                if (!in_array(
+                    $activityName,
+                    $activitiesByStatus[$status]
+                )) {
+                    $activitiesByStatus[$status][] = $activityName;
+                }
+            }
+        }
+
         $hours = [];
 
         if ($shift == '7') {
@@ -242,6 +287,7 @@ class StatusController extends Controller
             'units' => $units,
             'hours' => $hours,
             'statuses' => $statuses,
+            'activities' => $activitiesByStatus,
             'pivot' => $pivot,
             'totals' => $totals,
         ]);

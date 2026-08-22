@@ -371,8 +371,19 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariDurasi" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariDurasi"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -548,5 +559,34 @@
     $(document).ready(function(){
         loadDuration();
         $('#cariDurasi').on('click', loadDuration);
+    });
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+        const detailTable = document.getElementById('duration-table');
+        if (detailTable) {
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Durasi'
+            );
+        }
+
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Durasi Refueling Fuel Station_${tanggal}.xlsx`
+        );
     });
 </script>

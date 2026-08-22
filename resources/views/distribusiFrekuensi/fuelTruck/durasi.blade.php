@@ -288,8 +288,19 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -374,7 +385,7 @@
                 isNaN(value) ||
                 value === 0
             ) {
-                return '';
+                return '-';
             }
             return value.toFixed(2);
         }
@@ -797,6 +808,97 @@
         const defaultDate = `${yyyy}-${mm}-${dd}`;
         tanggalInput.value = defaultDate;
         loadDuration();
+    });
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+
+        function autoWidthColumns(sheet) {
+            if (!sheet['!ref']) return;
+
+            const range = XLSX.utils.decode_range(sheet['!ref']);
+            const columnWidths = [];
+
+            for (let C = range.s.c; C <= range.e.c; C++) {
+                let maxWidth = 0;
+
+                for (let R = range.s.r; R <= range.e.r; R++) {
+                    const cellAddress = XLSX.utils.encode_cell({
+                        r: R,
+                        c: C
+                    });
+
+                    const cell = sheet[cellAddress];
+
+                    if (
+                        cell &&
+                        cell.v !== undefined &&
+                        cell.v !== null
+                    ) {
+                        const value = String(cell.v);
+
+                        maxWidth = Math.max(
+                            maxWidth,
+                            value.length
+                        );
+                    }
+                }
+
+                columnWidths.push({
+                    wch: Math.min(maxWidth + 2, 50)
+                });
+            }
+
+            sheet['!cols'] = columnWidths;
+        }
+
+        const detailTable = document.getElementById('tblDuration');
+
+        if (detailTable) {
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+
+            autoWidthColumns(detailSheet);
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Durasi'
+            );
+        }
+
+        const frequencyTable = document.getElementById('tblAverageDuration');
+
+        if (frequencyTable) {
+            const frequencySheet = XLSX.utils.table_to_sheet(
+                frequencyTable,
+                {
+                    raw: true
+                }
+            );
+
+            autoWidthColumns(frequencySheet);
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                frequencySheet,
+                'Rata-rata'
+            );
+        }
+
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Durasi Refueling Fuel Truck_${tanggal}.xlsx`
+        );
     });
 
 </script>

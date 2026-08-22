@@ -33,6 +33,7 @@ class OverspeedController extends Controller
                 'A.OVERSPEEDSTATUS',
                 'A.UPDATED_AT',
                 'A.COUNT_CHECK',
+
                 DB::raw("
                     CASE
                         WHEN CAST(A.START_TIME AS TIME) >= '07:00:00'

@@ -249,6 +249,7 @@
 {{-- <script src="{{ asset('app') }}/assets/vendor/gridjs/gridjs.umd.js"></script> --}}
 
 <script src="{{ asset('app') }}/assets/cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="{{ asset('js/xlsx.full.min.js') }}"></script>
 <script src="{{ asset('app') }}/assets/js/plugins/dataTables.min.js"></script>
 <script src="{{ asset('app') }}/assets/js/plugins/dataTables.bootstrap5.min.js"></script>
 <script src="{{ asset('app') }}/assets/js/plugins/buttons.colVis.min.js"></script>

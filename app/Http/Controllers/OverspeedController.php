@@ -36,6 +36,11 @@ class OverspeedController extends Controller
                 'A.VHC_REFMAXSPEED',
                 'A.OVERSPEEDSTATUS',
                 'A.UPDATED_AT',
+                'A.OPR_NRP',
+                'A.OPR_NAME',
+                'A.GPS_LON',
+                'A.GPS_LAT',
+                'A.GPS_ALT',
                 DB::raw("
                     CASE
                         WHEN CAST(A.OPR_REPORTTIME AS TIME) >= '07:00:00'
@@ -45,7 +50,7 @@ class OverspeedController extends Controller
                     END AS OPR_SHIFTNO
                 ")
             ])
-            ->where('A.VHC_SPEED', '<=', 80)
+            ->where('A.VHC_SPEED', '<=', 70)
             ->where('A.VHC_ID', 'like', 'FT%');
 
         $tanggalInput = $request->input('tanggalStatus');

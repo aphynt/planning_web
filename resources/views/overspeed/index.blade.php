@@ -100,8 +100,19 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-1 mb-2 d-flex align-items-end">
-                                <button id="cariStatus" class="btn btn-primary w-100 me-2" style="padding-top:10px;padding-bottom:10px;">Tampilkan</button>
+                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+                                <button id="cariStatus"
+                                        class="btn btn-primary flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    Tampilkan
+                                </button>
+
+                                <button type="button"
+                                        id="exportAllExcel"
+                                        class="btn btn-success flex-fill"
+                                        style="padding-top:10px;padding-bottom:10px;">
+                                    <i class="ri-file-excel-2-line"></i> Export Excel
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -109,7 +120,7 @@
             </div>
         </div>
         <div class="row align-items-start">
-            <div class="col-md-6">
+            <div class="col-md-7">
                 <div class="card">
                     <div class="card-body">
                         <div id="loadingOverlay">
@@ -127,10 +138,16 @@
                                         <th rowspan="2">Waktu Kejadian</th>
                                         <th colspan="2">Speed</th>
                                         <th rowspan="2">Lokasi</th>
+                                        <th rowspan="2">Longitude</th>
+                                        <th rowspan="2">Latitude</th>
+                                        <th rowspan="2">Altitude</th>
+                                        <th colspan="2">Operator</th>
                                     </tr>
                                     <tr>
                                         <th>Actual</th>
                                         <th>Limit</th>
+                                        <th>NIK</th>
+                                        <th>Nama</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableBody"></tbody>
@@ -139,7 +156,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="row">
                     <div class="col-12">
                         <div class="card">
@@ -154,92 +171,42 @@
                         </div>
                     </div>
                     <div class="col-12">
-
                         <div class="card">
-
                             <div class="card-body">
-
                                 <div class="table-responsive duration-card">
-
-                                    <table
-                                        id="tblDuration"
-                                        class="table table-bordered table-sm align-middle text-center report-table w-100"
-                                    >
-
-                                        <thead
-                                            id="tblDurationHeader"
-                                        ></thead>
-
-                                        <tbody
-                                            id="tblDurationBody"
-                                        ></tbody>
-
+                                    <table id="tblDuration" class="table table-bordered table-sm align-middle text-center report-table w-100">
+                                        <thead id="tblDurationHeader"></thead>
+                                        <tbody id="tblDurationBody"></tbody>
                                     </table>
-
                                 </div>
-
                             </div>
-
                         </div>
-
                     </div>
-
-
                 </div>
-
             </div>
-
         </div>
-
     </div>
-
 </div>
 
 @include('layout.footer')
 
 
 <script>
-
-    /*
-    |--------------------------------------------------------------------------
-    | FLATPICKR
-    |--------------------------------------------------------------------------
-    */
-
     document.getElementById('tanggalStatus').flatpickr({
         mode: "range"
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | DEFAULT DATE
-    |--------------------------------------------------------------------------
-    */
-
     document.addEventListener('DOMContentLoaded', function () {
-
         const urlParams = new URLSearchParams(
             window.location.search
         );
-
         const rangeDate = urlParams.get('rangeDate');
-
-        const rangeInput =
-            document.getElementById('tanggalStatus');
-
-
+        const rangeInput = document.getElementById('tanggalStatus');
         if (rangeDate) {
-
             rangeInput.value = rangeDate;
-
         } else {
-
             const today = new Date();
-
-            const yyyy =
-                today.getFullYear();
-
+            const yyyy = today.getFullYear();
             const mm =
                 String(
                     today.getMonth() + 1
@@ -250,30 +217,15 @@
                     today.getDate()
                 ).padStart(2, '0');
 
-
-            rangeInput.placeholder =
-                `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
+            rangeInput.placeholder = `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
         }
 
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATATABLE
-    |--------------------------------------------------------------------------
-    */
-
     var table;
-
-
     $(document).ready(function() {
-
         var userRole = "{{ Auth::user()->role }}";
-
-
         table = $('#dataStatus').DataTable({
-
             dom:
                 "<'row align-items-center mb-3'<'col-md-6'B><'col-md-6 d-flex justify-content-end'f>>" +
                 "rt" +
@@ -287,152 +239,114 @@
             ],
 
             processing: true,
-
             serverSide: true,
 
             ajax: {
-
                 url: '{{ route('overspeed.api') }}',
-
                 method: 'GET',
 
-
                 beforeSend: function () {
-
-                    $('#loadingOverlay').css(
-                        'display',
-                        'flex'
-                    );
-
+                    $('#loadingOverlay').css('display', 'flex');
                 },
-
 
                 complete: function () {
-
                     $('#loadingOverlay').hide();
-
                 },
 
-
+                error: function (xhr, error, thrown) {
+                    console.error('AJAX ERROR');
+                    console.error('Status:', xhr.status);
+                    console.error('Error:', error);
+                    console.error('Thrown:', thrown);
+                    console.error('Response:', xhr.responseText);
+                },
                 data: function(d) {
-
-                    d.tanggalStatus =
-                        $('#tanggalStatus').val();
-
-                    d.shift =
-                        $('#shift').val();
-
-
+                    d.tanggalStatus = $('#tanggalStatus').val();
+                    d.shift = $('#shift').val();
                     delete d.columns;
                     delete d.order;
-
                 },
 
-
                 dataSrc: function(json) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | FREQUENCY
-                    |--------------------------------------------------------------------------
-                    */
-
                     if (json.frequency) {
-
-                        loadFrequencyTable(
-                            json.frequency
-                        );
-
+                        loadFrequencyTable(json.frequency);
                     }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | DURATION
-                    |--------------------------------------------------------------------------
-                    */
-
                     if (json.duration) {
-
-                        loadDurationTable(
-                            json.duration
-                        );
-
+                        loadDurationTable(json.duration);
                     }
-
-
-                    return json.data;
-
+                    return json.data || [];
                 }
-
             },
-
-
             columns: [
-
                 {
                     data: 'ID'
                 },
-
-
                 {
                     data: 'VHC_ID'
                 },
-
-
                 {
                     data: 'OPR_REPORTTIME',
-
                     render: function(data) {
-
                         if (!data) {
                             return '-';
                         }
-
                         return data.substring(
                             0,
                             19
                         );
-
                     }
-
                 },
-
-
                 {
                     data: 'VHC_SPEED',
-
                     render: function(data) {
-
                         return parseFloat(
                             data || 0
                         ).toFixed(1);
-
                     }
-
                 },
-
-
                 {
                     data: 'VHC_REFMAXSPEED'
                 },
-
-
                 {
-                    data: 'LOC_NAME'
-                }
+                    data: 'LOC_NAME',
+                    defaultContent: ''
+                },
+                {
+                    data: 'GPS_LON',
+                    render: function(data) {
+                        if (data == null || data === '') return '';
+                        return Number(data).toFixed(6);
+                    }
+                },
+                {
+                    data: 'GPS_LAT',
+                    render: function(data) {
+                        if (data == null || data === '') return '';
+                        return Number(data).toFixed(6);
+                    }
+                },
+                {
+                    data: 'GPS_ALT',
+                    render: function(data) {
+                        if (data == null || data === '') return '';
+                        return Number(data).toFixed(2);
+                    }
+                },
+                {
+                    data: 'OPR_NRP',
+                    defaultContent: ''
+                },
+                {
+                    data: 'OPR_NAME',
+                    defaultContent: ''
+                },
 
             ],
-
 
             order: [
                 [0, 'asc']
             ],
-
-
             pageLength: 25,
-
-
             lengthMenu: [
                 10,
                 15,
@@ -441,388 +355,194 @@
             ]
 
         });
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BUTTON TAMPILKAN
-        |--------------------------------------------------------------------------
-        */
-
         $('#cariStatus').click(function() {
-
             table.ajax.reload();
-
         });
 
     });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FORMAT JAM
-    |--------------------------------------------------------------------------
-    */
-
     function formatHourRange(hour) {
-
-        let nextHour =
-            parseInt(hour) + 1;
-
-
+        let nextHour = parseInt(hour) + 1;
         if (nextHour >= 24) {
             nextHour = 0;
         }
-
-
         return String(hour).padStart(2, '0')
             + '-'
             + String(nextHour).padStart(2, '0');
 
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FREQUENCY TABLE
-    |--------------------------------------------------------------------------
-    */
-
     function loadFrequencyTable(frequency) {
-
         if (!frequency) {
             return;
         }
-
-
-        let hours =
-            frequency.hours || [];
-
-        let rows =
-            frequency.rows || [];
-
-        let total =
-            frequency.total || {
-                total: 0
-            };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HEADER
-        |--------------------------------------------------------------------------
-        */
-
+        let hours = frequency.hours || [];
+        let rows = frequency.rows || [];
+        let total = frequency.total || { total: 0 };
         let header = `
-
             <tr>
 
-                <th rowspan="2">
-                    Unit
-                </th>
-
-                <th
-                    colspan="${hours.length}"
-                    class="report-title"
-                >
-                    Frekuensi Overspeed
-                </th>
-
-                <th rowspan="2">
-                    Total
-                </th>
-
+                <th rowspan="2">Unit</th>
+                <th colspan="${hours.length}" class="report-title">Frekuensi Overspeed</th>
+                <th rowspan="2">Total</th>
             </tr>
-
             <tr>
-
         `;
-
-
         hours.forEach(function(hour) {
-
             header += `
-
                 <th>
                     ${formatHourRange(hour)}
                 </th>
-
             `;
-
         });
-
-
         header += `
-
             </tr>
 
         `;
-
-
-        $('#tblFrequencyHeader')
-            .html(header);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BODY
-        |--------------------------------------------------------------------------
-        */
-
+        $('#tblFrequencyHeader').html(header);
         let body = '';
-
-
         rows.forEach(function(row) {
-
             body += `
-
                 <tr>
-
                     <td class="text-start">
                         ${row.unit}
                     </td>
-
             `;
-
-
             hours.forEach(function(hour) {
-
                 body += `
-
                     <td>
                         ${row['hour_' + hour] ?? 0}
                     </td>
-
                 `;
-
             });
-
-
             body += `
-
                     <td>
                         <strong>
                             ${row.total ?? 0}
                         </strong>
                     </td>
-
                 </tr>
-
             `;
-
         });
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL
-        |--------------------------------------------------------------------------
-        */
-
         body += `
-
             <tr class="total-row">
-
                 <td class="text-start">
                     Total
                 </td>
-
         `;
-
-
         hours.forEach(function(hour) {
-
             body += `
-
                 <td>
                     ${total['hour_' + hour] ?? 0}
                 </td>
-
             `;
-
         });
-
-
         body += `
-
                 <td>
                     ${total.total ?? 0}
                 </td>
-
             </tr>
-
         `;
-
-
-        $('#tblFrequencyBody')
-            .html(body);
-
+        $('#tblFrequencyBody').html(body);
     }
 
-
     function loadDurationTable(duration) {
-
         if (!duration) {
             return;
         }
-
-
-        let hours =
-            duration.hours || [];
-
-        let rows =
-            duration.rows || [];
-
+        let hours = duration.hours || [];
+        let rows = duration.rows || [];
         let total =
             duration.total || {
                 total: 0
             };
-
         let header = `
-
             <tr>
-
                 <th rowspan="2">
                     Unit
                 </th>
-
                 <th
                     colspan="${hours.length}"
                     class="report-title"
                 >
-                    Durasi Overspeed
+                    Durasi Overspeed (menit)
                 </th>
-
                 <th rowspan="2">
                     Total
                 </th>
-
             </tr>
-
             <tr>
-
         `;
 
-
         hours.forEach(function(hour) {
-
             header += `
-
                 <th>
                     ${formatHourRange(hour)}
                 </th>
-
             `;
-
         });
 
-
         header += `
-
             </tr>
-
         `;
 
 
-        $('#tblDurationHeader')
-            .html(header);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BODY
-        |--------------------------------------------------------------------------
-        */
+        $('#tblDurationHeader').html(header);
 
         let body = '';
-
-
         rows.forEach(function(row) {
-
             body += `
-
                 <tr>
-
                     <td class="text-start">
                         ${row.unit}
                     </td>
-
             `;
 
-
             hours.forEach(function(hour) {
-
                 let value =
                     parseFloat(
                         row['hour_' + hour] || 0
                     );
 
-
                 body += `
-
                     <td>
                         ${value.toFixed(2)}
                     </td>
-
                 `;
-
             });
-
 
             let totalValue =
                 parseFloat(
                     row.total || 0
                 );
-
-
             body += `
-
                     <td>
                         <strong>
                             ${totalValue.toFixed(2)}
                         </strong>
                     </td>
-
                 </tr>
-
             `;
-
         });
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL
-        |--------------------------------------------------------------------------
-        */
-
         body += `
-
             <tr class="total-row">
-
                 <td class="text-start">
                     Total
                 </td>
-
         `;
 
 
         hours.forEach(function(hour) {
-
             let value =
                 parseFloat(
                     total['hour_' + hour] || 0
                 );
 
-
             body += `
-
                 <td>
                     ${value.toFixed(2)}
                 </td>
-
             `;
-
         });
 
 
@@ -831,21 +551,77 @@
                 total.total || 0
             );
 
-
         body += `
-
                 <td>
                     ${grandTotal.toFixed(2)}
                 </td>
-
             </tr>
-
         `;
 
 
-        $('#tblDurationBody')
-            .html(body);
-
+        $('#tblDurationBody').html(body);
     }
+
+    $('#exportAllExcel').on('click', function () {
+        const workbook = XLSX.utils.book_new();
+        const detailTable = document.getElementById('dataStatus');
+        if (detailTable) {
+            const detailSheet = XLSX.utils.table_to_sheet(
+                detailTable,
+                {
+                    raw: true
+                }
+            );
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                detailSheet,
+                'Detail Overspeed'
+            );
+        }
+        const frequencyTable = document.getElementById('tblFrequency');
+        if (frequencyTable) {
+            const frequencySheet =
+                XLSX.utils.table_to_sheet(
+                    frequencyTable,
+                    {
+                        raw: true
+                    }
+                );
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                frequencySheet,
+                'Frekuensi'
+            );
+        }
+
+        const durationTable = document.getElementById('tblDuration');
+        if (durationTable) {
+            const durationSheet =
+                XLSX.utils.table_to_sheet(
+                    durationTable,
+                    {
+                        raw: true
+                    }
+                );
+
+            XLSX.utils.book_append_sheet(
+                workbook,
+                durationSheet,
+                'Durasi'
+            );
+        }
+
+        const tanggal =
+            $('#tanggalStatus').val()
+                .replaceAll(' ', '_')
+                .replaceAll('/', '-');
+
+        XLSX.writeFile(
+            workbook,
+            `Overspeed_${tanggal}.xlsx`
+        );
+    });
 
 </script>
