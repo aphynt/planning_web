@@ -71,20 +71,58 @@
         padding: 12px 15px 0 15px;
     }
 
+    .status-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 15px;
+        font-size: 12px;
+    }
+
+    .status-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .status-legend-color {
+        width: 35px;
+        height: 16px;
+        border-radius: 2px;
+        border: 1px solid rgba(0, 0, 0, .15);
+    }
+
+    .legend-ready {
+        background: #008FFB;
+    }
+
+    .legend-standby {
+        background: #00E396;
+    }
+
+    .legend-delay {
+        background: #FEB019;
+    }
+
+    .legend-breakdown {
+        background: #FF4560;
+    }
+
 </style>
 <div class="page-content">
     <div class="container-fluid">
         <div class="row">
             <div class="col-12">
                 <div class="page-title-box">
-                    <h4 class="mb-3 fw-semibold">Distribusi Frekuensi Fuel Truck</h4>
+                    <h4 class="fw-semibold">Distribusi Frekuensi Fuel Truck</h4>
 
                     <div class="col-12">
-                        <div class="mb-3 row">
+                        <div class="row">
                             <div class="col-6 col-md-2 mb-2">
                                 <label for="tanggalStatus">Tanggal</label>
                                 <input type="text" id="tanggalStatus" class="form-control" name="tanggalStatus">
                             </div>
+
                             <div class="col-6 col-md-1 mb-2">
                                 <label for="shift">Shift</label>
                                 <select class="form-select" name="shift" id="shift">
@@ -92,7 +130,8 @@
                                     <option value="7">Malam</option>
                                 </select>
                             </div>
-                            <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
+
+                            <div class="col-6 col-md-3 mb-2 d-flex align-items-end gap-2">
                                 <button id="cariStatus"
                                         class="btn btn-primary flex-fill"
                                         style="padding-top:10px;padding-bottom:10px;">
@@ -105,6 +144,30 @@
                                         style="padding-top:10px;padding-bottom:10px;">
                                     <i class="ri-file-excel-2-line"></i> Export Excel
                                 </button>
+                            </div>
+
+                            <div class="col-12 col-md-6 mb-2 d-flex align-items-end justify-content-end">
+                                <div class="status-legend d-flex align-items-center gap-3">
+                                    <div class="status-legend-item">
+                                        <span class="status-legend-color legend-ready"></span>
+                                        <span>Ready</span>
+                                    </div>
+
+                                    <div class="status-legend-item">
+                                        <span class="status-legend-color legend-standby"></span>
+                                        <span>Standby</span>
+                                    </div>
+
+                                    <div class="status-legend-item">
+                                        <span class="status-legend-color legend-delay"></span>
+                                        <span>Delay</span>
+                                    </div>
+
+                                    <div class="status-legend-item">
+                                        <span class="status-legend-color legend-breakdown"></span>
+                                        <span>Breakdown</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

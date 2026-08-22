@@ -536,7 +536,7 @@
 
                             <input type="search"
                                 class="modern-search-input"
-                                placeholder="Search anything..."
+                                placeholder="Cari sesuatu..."
                                 autocomplete="off">
 
                             <div class="modern-search-shortcut">
