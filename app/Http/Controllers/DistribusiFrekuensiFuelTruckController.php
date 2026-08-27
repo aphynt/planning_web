@@ -57,13 +57,6 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             ->orderBy('A.OPR_REPORTTIME')
             ->get();
 
-        $fuelTrucks = $data
-            ->pluck('VHC_ID')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
-
         $vehicleStatus = DB::connection('focus')
             ->table('FLT_VEHICLE as A')
             ->leftJoin(
@@ -79,14 +72,46 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             ])
             ->get()
             ->keyBy('VHC_ID');
-        $fuelTruckStatus = [];
-        foreach ($fuelTrucks as $fuelTruck) {
-            $status = 'Ready';
-            if (isset($vehicleStatus[$fuelTruck])) {
-                $status = trim($vehicleStatus[$fuelTruck]->STATUS);
-            }
-            $fuelTruckStatus[$fuelTruck] = $status;
-        }
+
+        $unitQuery = DB::connection('focus')
+        ->table('FLT_VEHICLE as A')
+        ->leftJoin(
+            'FLT_VSAGROUP as B',
+            'A.VSA_GROUPID',
+            '=',
+            'B.VSA_GROUPID'
+        )
+        ->where('A.VHC_TYPEID', 5)
+        ->where('A.VHC_ACTIVE', 1)
+        ->select([
+            'A.VHC_ID',
+            DB::raw(
+                "COALESCE(B.VSA_GROUPDESC, 'Ready') AS STATUS"
+            )
+        ]);
+
+        $units = $unitQuery
+            ->orderBy('A.VHC_ID')
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'id'     => $unit->VHC_ID,
+                    'status' => trim($unit->STATUS ?? 'Ready'),
+                ];
+            })
+            ->values();
+
+        $fuelTrucks = $units
+            ->pluck('id')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $fuelTruckStatus = $units
+            ->pluck('status', 'id')
+            ->toArray();
+
         $units = [
             'Fuel Station',
             'Loader',
@@ -175,9 +200,7 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             }
 
             foreach ($noteLines as $noteLine) {
-
                 $noteLine = trim($noteLine);
-
                 if ($noteLine === '') {
                     continue;
                 }
@@ -191,7 +214,6 @@ class DistribusiFrekuensiFuelTruckController extends Controller
                     continue;
                 }
                 $unitName = $parts[1];
-
                 if (!in_array($unitName, $units, true)) {
                     continue;
                 }
@@ -242,17 +264,31 @@ class DistribusiFrekuensiFuelTruckController extends Controller
 
         $grandTotal = array_sum($fuelTruckGrandTotal);
 
+        $totalHours = count($hours);
+        $totalUnits = count($units);
+        $totalFuelTrucks = count($fuelTrucks);
+
+        $averagePerHour = $totalHours > 0 ? round($grandTotal / $totalHours, 2) : 0;
+        $averagePerFuelTruck = $totalFuelTrucks > 0 ? round($grandTotal / $totalFuelTrucks, 2) : 0;
+        $averagePerUnit = $totalUnits > 0 ? round($grandTotal / $totalUnits, 2) : 0;
+
         return response()->json([
-            'hours'               => $hours,
-            'units'               => $units,
-            'fuelTrucks'          => $fuelTrucks,
-            'fuelTruckStatus'     => $fuelTruckStatus,
-            'pivot'               => $pivot,
-            'totalsByUnit'        => $totalsByUnit,
-            'totalsByHour'        => $totalsByHour,
-            'unitGrandTotal'      => $unitGrandTotal,
-            'fuelTruckGrandTotal' => $fuelTruckGrandTotal,
-            'grandTotal'          => $grandTotal,
+            'hours'                  => $hours,
+            'units'                  => $units,
+            'fuelTrucks'             => $fuelTrucks,
+            'fuelTruckStatus'        => $fuelTruckStatus,
+            'pivot'                  => $pivot,
+            'totalsByUnit'           => $totalsByUnit,
+            'totalsByHour'           => $totalsByHour,
+            'unitGrandTotal'         => $unitGrandTotal,
+            'fuelTruckGrandTotal'    => $fuelTruckGrandTotal,
+            'grandTotal'             => $grandTotal,
+            'averagePerHour'         => $averagePerHour,
+            'averagePerFuelTruck'    => $averagePerFuelTruck,
+            'averagePerUnit'         => $averagePerUnit,
+            'startDate'              => $startDate,
+            'endDate'                => $endDate,
+            'shift'                  => $shift,
         ]);
     }
 
@@ -295,26 +331,60 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             ->where('A.VHC_TYPEID', 5)
             ->where('A.OPR_REPORTTIME', '>', '1970-01-01')
             ->where('A.OPR_ENDTIME', '>', '1970-01-01')
-            ->whereRaw('A.OPR_ENDTIME >= A.OPR_REPORTTIME');
-
-        $query->whereBetween('A.OPR_SHIFTDATE', [
-            $startDate,
-            $endDate
-        ]);
+            ->whereRaw('A.OPR_ENDTIME >= A.OPR_REPORTTIME')
+            ->whereBetween('A.OPR_SHIFTDATE', [
+                $startDate,
+                $endDate
+            ]);
 
         if (!empty($shift) && $shift !== 'Semua') {
-
-            $query->where(
-                'A.OPR_SHIFTNO',
-                $shift
-            );
+            $query->where('A.OPR_SHIFTNO', $shift);
         }
 
         $data = $query
             ->orderBy('A.OPR_REPORTTIME')
             ->get();
 
-        $units = [
+        $unitQuery = DB::connection('focus')
+            ->table('FLT_VEHICLE as A')
+            ->leftJoin(
+                'FLT_VSAGROUP as B',
+                'A.VSA_GROUPID',
+                '=',
+                'B.VSA_GROUPID'
+            )
+            ->where('A.VHC_TYPEID', 5)
+            ->where('A.VHC_ACTIVE', 1)
+            ->select([
+                'A.VHC_ID',
+                DB::raw(
+                    "COALESCE(B.VSA_GROUPDESC, 'Ready') AS STATUS"
+                )
+            ]);
+
+        $units = $unitQuery
+            ->orderBy('A.VHC_ID')
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'id'     => $unit->VHC_ID,
+                    'status' => trim($unit->STATUS ?? 'Ready'),
+                ];
+            })
+            ->values();
+
+        $fuelTrucks = $units
+            ->pluck('id')
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $fuelTruckStatus = $units
+            ->pluck('status', 'id')
+            ->toArray();
+
+        $unitTypes = [
             'Fuel Station',
             'Loader',
             'Hauler',
@@ -335,10 +405,10 @@ class DistribusiFrekuensiFuelTruckController extends Controller
         ];
 
         $hours = [];
-
         if ($shift === '7') {
             for ($i = 19; $i <= 23; $i++) {
                 $nextHour = ($i + 1) % 24;
+
                 $hours[] = sprintf(
                     '%02d-%02d',
                     $i,
@@ -363,52 +433,20 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             }
         }
 
-        $fuelTrucks = $data
-            ->pluck('VHC_ID')
-            ->filter()
-            ->unique()
-            ->sort()
-            ->values();
-        $vehicleStatus = DB::connection('focus')
-            ->table('FLT_VEHICLE as A')
-            ->leftJoin(
-                'FLT_VSAGROUP as B',
-                'A.VSA_GROUPID',
-                '=',
-                'B.VSA_GROUPID'
-            )
-            ->where('A.VHC_TYPEID', 5)
-            ->select([
-                'A.VHC_ID',
-                DB::raw("COALESCE(B.VSA_GROUPDESC, 'Ready') AS STATUS")
-            ])
-            ->get()
-            ->keyBy('VHC_ID');
-
-        $fuelTruckStatus = [];
-        foreach ($fuelTrucks as $fuelTruck) {
-            $status = 'Ready';
-            if (isset($vehicleStatus[$fuelTruck])) {
-                $status = trim($vehicleStatus[$fuelTruck]->STATUS);
-            }
-            $fuelTruckStatus[$fuelTruck] = $status;
-        }
-
         $durationPivot = [];
-
         foreach ($hours as $hour) {
-            foreach ($units as $unit) {
+            foreach ($unitTypes as $unitType) {
                 foreach ($fuelTrucks as $fuelTruck) {
-                    $durationPivot[$hour][$unit][$fuelTruck] = 0;
+                    $durationPivot[$hour][$unitType][$fuelTruck] = 0;
                 }
             }
         }
 
         $frequencyPivot = [];
         foreach ($hours as $hour) {
-            foreach ($units as $unit) {
+            foreach ($unitTypes as $unitType) {
                 foreach ($fuelTrucks as $fuelTruck) {
-                    $frequencyPivot[$hour][$unit][$fuelTruck] = 0;
+                    $frequencyPivot[$hour][$unitType][$fuelTruck] = 0;
                 }
             }
         }
@@ -417,23 +455,24 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             if (empty($row->VSA_NOTES)) {
                 continue;
             }
-            $fuelTruck = trim(
-                $row->VHC_ID
-            );
-
+            $fuelTruck = trim($row->VHC_ID);
             if ($fuelTruck === '') {
                 continue;
             }
+
+            if (!$fuelTrucks->contains($fuelTruck)) {
+                continue;
+            }
+
             try {
                 $reportTime = Carbon::parse(
                     $row->OPR_REPORTTIME
                 );
+
                 $endTime = Carbon::parse(
                     $row->OPR_ENDTIME
                 );
-
             } catch (\Throwable $e) {
-
                 continue;
             }
 
@@ -443,7 +482,6 @@ class DistribusiFrekuensiFuelTruckController extends Controller
 
             $durationMinutes = $reportTime->diffInSeconds($endTime) / 60;
             $hour = (int) $reportTime->format('H');
-
             $nextHour = ($hour + 1) % 24;
             $slot = sprintf(
                 '%02d-%02d',
@@ -451,11 +489,7 @@ class DistribusiFrekuensiFuelTruckController extends Controller
                 $nextHour
             );
 
-            if (!in_array(
-                $slot,
-                $hours,
-                true
-            )) {
+            if (!in_array($slot, $hours, true)) {
                 continue;
             }
 
@@ -465,17 +499,13 @@ class DistribusiFrekuensiFuelTruckController extends Controller
                 $row->VSA_NOTES
             );
 
-
             $noteLines = explode(
                 "\n",
                 $notes
             );
 
             foreach ($noteLines as $noteLine) {
-                $noteLine = trim(
-                    $noteLine
-                );
-
+                $noteLine = trim($noteLine);
                 if ($noteLine === '') {
                     continue;
                 }
@@ -490,31 +520,31 @@ class DistribusiFrekuensiFuelTruckController extends Controller
                 }
 
                 $unitName = $parts[1];
-
                 if (!in_array(
                     $unitName,
-                    $units,
+                    $unitTypes,
                     true
                 )) {
                     continue;
                 }
 
                 $durationPivot[$slot][$unitName][$fuelTruck] += $durationMinutes;
-
                 $frequencyPivot[$slot][$unitName][$fuelTruck]++;
             }
         }
 
         $durationByUnit = [];
-        foreach ($units as $unit) {
+        foreach ($unitTypes as $unitType) {
             foreach ($fuelTrucks as $fuelTruck) {
                 $total = 0;
-
                 foreach ($hours as $hour) {
-                    $total += $durationPivot[$hour][$unit][$fuelTruck] ?? 0;
+                    $total +=
+                        $durationPivot[$hour][$unitType][$fuelTruck]
+                        ?? 0;
                 }
 
-                $durationByUnit[$unit][$fuelTruck] = round($total, 2);
+                $durationByUnit[$unitType][$fuelTruck] =
+                    round($total, 2);
             }
         }
 
@@ -522,76 +552,87 @@ class DistribusiFrekuensiFuelTruckController extends Controller
         foreach ($hours as $hour) {
             foreach ($fuelTrucks as $fuelTruck) {
                 $total = 0;
-                foreach ($units as $unit) {
-                    $total += $durationPivot[$hour][$unit][$fuelTruck] ?? 0;
+                foreach ($unitTypes as $unitType) {
+                    $total += $durationPivot[$hour][$unitType][$fuelTruck] ?? 0;
                 }
 
-                $durationByHour[$hour][$fuelTruck] = round($total, 2);
+                $durationByHour[$hour][$fuelTruck] =
+                    round($total, 2);
             }
         }
 
         $averageDuration = [];
-        foreach ($units as $unit) {
+        foreach ($unitTypes as $unitType) {
             foreach ($hours as $hour) {
                 $totalDuration = 0;
                 $totalFrequency = 0;
                 foreach ($fuelTrucks as $fuelTruck) {
-                    $totalDuration += $durationPivot[$hour][$unit][$fuelTruck] ?? 0;
-                    $totalFrequency += $frequencyPivot[$hour][$unit][$fuelTruck] ?? 0;
+                    $totalDuration += $durationPivot[$hour][$unitType][$fuelTruck] ?? 0;
+                    $totalFrequency += $frequencyPivot[$hour][$unitType][$fuelTruck] ?? 0;
                 }
+                $average =
+                    $totalFrequency > 0
+                        ? $totalDuration / $totalFrequency
+                        : 0;
 
-                if ($totalFrequency > 0) {
-                    $average = $totalDuration / $totalFrequency;
-                } else {
-                    $average = 0;
-                }
-
-                $averageDuration[$unit][$hour] = round($average, 2);
+                $averageDuration[$unitType][$hour] =
+                    round($average, 2);
             }
         }
 
         $averageDurationTotal = [];
-        foreach ($units as $unit) {
+        foreach ($unitTypes as $unitType) {
             $totalDuration = 0;
             $totalFrequency = 0;
             foreach ($hours as $hour) {
                 foreach ($fuelTrucks as $fuelTruck) {
-                    $totalDuration += $durationPivot[$hour][$unit][$fuelTruck] ?? 0;
-                    $totalFrequency += $frequencyPivot[$hour][$unit][$fuelTruck] ?? 0;
+                    $totalDuration += $durationPivot[$hour][$unitType][$fuelTruck] ?? 0;
+                    $totalFrequency += $frequencyPivot[$hour][$unitType][$fuelTruck] ?? 0;
                 }
             }
 
-            $averageDurationTotal[$unit] =
-                $totalFrequency > 0 ? round($totalDuration / $totalFrequency, 2) : 0;
+            $averageDurationTotal[$unitType] =
+                $totalFrequency > 0
+                    ? round(
+                        $totalDuration / $totalFrequency,
+                        2
+                    )
+                    : 0;
         }
 
         $fuelTruckGrandTotal = [];
         foreach ($fuelTrucks as $fuelTruck) {
             $total = 0;
-            foreach ($units as $unit) {
-                $total += $durationByUnit[$unit][$fuelTruck] ?? 0;
+            foreach ($unitTypes as $unitType) {
+                $total += $durationByUnit[$unitType][$fuelTruck] ?? 0;
             }
 
-            $fuelTruckGrandTotal[$fuelTruck] = round($total, 2);
+            $fuelTruckGrandTotal[$fuelTruck] =
+                round($total, 2);
         }
 
-        $grandTotal = round(array_sum($fuelTruckGrandTotal), 2);
+        $grandTotal =
+            round(
+                array_sum($fuelTruckGrandTotal),
+                2
+            );
+
         return response()->json([
-            'hours'                 => $hours,
-            'units'                 => $units,
-            'fuelTrucks'            => $fuelTrucks,
-            'fuelTruckStatus'       => $fuelTruckStatus,
-            'durationPivot'         => $durationPivot,
-            'durationByUnit'        => $durationByUnit,
-            'durationByHour'        => $durationByHour,
-            'averageDuration'       => $averageDuration,
-            'averageDurationTotal'  => $averageDurationTotal,
-            'frequencyPivot'        => $frequencyPivot,
-            'fuelTruckGrandTotal'   => $fuelTruckGrandTotal,
-            'grandTotal'            => $grandTotal,
-            'startDate'             => $startDate,
-            'endDate'               => $endDate,
-            'shift'                 => $shift,
+            'hours'                => $hours,
+            'units'                => $unitTypes,
+            'fuelTrucks'           => $fuelTrucks,
+            'fuelTruckStatus'      => $fuelTruckStatus,
+            'durationPivot'        => $durationPivot,
+            'durationByUnit'       => $durationByUnit,
+            'durationByHour'       => $durationByHour,
+            'averageDuration'      => $averageDuration,
+            'averageDurationTotal' => $averageDurationTotal,
+            'frequencyPivot'       => $frequencyPivot,
+            'fuelTruckGrandTotal'  => $fuelTruckGrandTotal,
+            'grandTotal'           => $grandTotal,
+            'startDate'            => $startDate,
+            'endDate'              => $endDate,
+            'shift'                => $shift,
         ]);
     }
 }

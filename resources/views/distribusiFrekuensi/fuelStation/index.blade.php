@@ -73,6 +73,16 @@
         font-weight: 500;
         margin-bottom: 5px;
     }
+
+    .summary-row td {
+        font-weight: 700;
+        background-color: #fff3cd !important;
+    }
+
+    .grand-summary-row td {
+        font-weight: 700;
+        background-color: #ffe9cc !important;
+    }
 </style>
 
 <div class="page-content">
@@ -93,6 +103,13 @@
                                 <select class="form-select" name="shift" id="shift">
                                     <option value="6" selected>Siang</option>
                                     <option value="7">Malam</option>
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2 mb-2">
+                                <label for="summaryMode">Tampilan</label>
+                                <select id="summaryMode" class="form-select">
+                                    <option value="total" selected>Total</option>
+                                    <option value="average">Rata-rata</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
@@ -155,6 +172,34 @@
 @include('layout.footer')
 
 <script>
+    let latestFrequencyResponse = null;
+
+    function getSummaryMode() {
+        return $('#summaryMode').val() || 'total';
+    }
+
+    function summaryLabel() {
+        return getSummaryMode() === 'average'
+            ? 'Rata-rata'
+            : 'Total';
+    }
+
+    function displayValue(value, decimals = 2) {
+        const number = Number(value || 0);
+
+        if (number === 0) {
+            return '-';
+        }
+
+        return Number.isInteger(number)
+            ? number
+            : number.toFixed(decimals);
+    }
+
+    function average(total, count) {
+        return count > 0 ? total / count : 0;
+    }
+
     document.getElementById('tanggalStatus').flatpickr({
         mode: 'range',
         dateFormat: 'Y-m-d'
@@ -207,6 +252,9 @@
     }
 
     function buildTable(res) {
+
+        const isAverage = getSummaryMode() === 'average';
+
         let header = `
             <tr>
                 <th rowspan="2" class="text-center align-middle">
@@ -217,15 +265,12 @@
                     Status
                 </th>
 
-                <th
-                    colspan="${res.fuelStations.length}"
-                    class="text-center"
-                >
+                <th colspan="${res.fuelStations.length}" class="text-center">
                     Frekuensi
                 </th>
 
                 <th rowspan="2" class="text-center align-middle">
-                    Total
+                    ${isAverage ? 'Rata-rata' : 'Total'}
                 </th>
             </tr>
 
@@ -236,22 +281,26 @@
 
             header += `
                 <th class="text-center">
-                    ${fuelStation}
+                    ${escapeHtml(fuelStation)}
                 </th>
             `;
+
         });
 
-        header += `
-            </tr>
-        `;
+        header += `</tr>`;
 
         $('#tblHeader').html(header);
 
         let html = '';
+
         res.hours.forEach(function (hour) {
+
             res.units.forEach(function (unit, index) {
-                html += '<tr>';
+
+                html += `<tr>`;
+
                 if (index === 0) {
+
                     html += `
                         <td
                             rowspan="${res.units.length}"
@@ -260,6 +309,7 @@
                             ${escapeHtml(hour)}
                         </td>
                     `;
+
                 }
 
                 html += `
@@ -269,54 +319,179 @@
                 `;
 
                 let rowTotal = 0;
+
                 res.fuelStations.forEach(function (fuelStation) {
+
                     const value = Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
+
                     rowTotal += value;
+
                     html += `
                         <td class="text-center">
-                            ${value}
+                            ${displayValue(value, 0)}
                         </td>
                     `;
+
                 });
+
+                const rowSummary = isAverage
+                    ? average(rowTotal, res.fuelStations.length)
+                    : rowTotal;
 
                 html += `
                     <td class="text-center fw-bold">
-                        ${rowTotal}
+                        ${displayValue(rowSummary)}
                     </td>
                 `;
 
-                html += '</tr>';
+                html += `</tr>`;
+
             });
 
+            // Summary per jam mengikuti pilihan Tampilan.
             html += `
-                <tr class="total-row">
+                <tr class="summary-row">
                     <td colspan="2" class="text-start">
-                        Total
+                        ${isAverage ? 'Rata-rata' : 'Total'}
                     </td>
             `;
 
-            let totalHour = 0;
+            let hourTotal = 0;
+
             res.fuelStations.forEach(function (fuelStation) {
-                const value = Number(
+
+                const stationHourTotal = Number(
                     res.totalsByHour?.[hour]?.[fuelStation] || 0
                 );
-                totalHour += value;
+
+                hourTotal += stationHourTotal;
+
+                const value = isAverage
+                    ? average(stationHourTotal, res.units.length)
+                    : stationHourTotal;
+
                 html += `
                     <td class="text-center">
-                        ${value}
+                        ${displayValue(value)}
                     </td>
                 `;
+
             });
 
+            const hourSummary = isAverage
+                ? average(
+                    hourTotal,
+                    res.units.length * res.fuelStations.length
+                )
+                : hourTotal;
+
             html += `
-                    <td class="text-center">
-                        ${totalHour}
+                    <td class="text-center fw-bold">
+                        ${displayValue(hourSummary)}
                     </td>
                 </tr>
             `;
+
         });
+
+        // ============================================================
+        // SUMMARY AKHIR
+        // HANYA MENAMPILKAN SESUAI PILIHAN summaryMode.
+        // ============================================================
+
+        let grandTotal = 0;
+        const stationGrandTotals = {};
+
+        res.fuelStations.forEach(function (fuelStation) {
+
+            stationGrandTotals[fuelStation] = 0;
+
+            res.hours.forEach(function (hour) {
+
+                res.units.forEach(function (unit) {
+
+                    stationGrandTotals[fuelStation] += Number(
+                        res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
+                    );
+
+                });
+
+            });
+
+            grandTotal += stationGrandTotals[fuelStation];
+
+        });
+
+            const totalDataCount =
+                res.hours.length *
+                res.units.length *
+                res.fuelStations.length;
+
+            const grandAverage = average(
+                grandTotal,
+                totalDataCount
+            );
+
+            html += `
+                <tr class="grand-summary-row">
+
+                    <td colspan="2" class="text-start">
+                        Grand Total
+                    </td>
+            `;
+
+            res.fuelStations.forEach(function (fuelStation) {
+
+                html += `
+                    <td class="text-center">
+                        ${displayValue(
+                            stationGrandTotals[fuelStation]
+                        )}
+                    </td>
+                `;
+
+            });
+
+            html += `
+                    <td class="text-center fw-bold">
+                        ${displayValue(grandTotal)}
+                    </td>
+
+                </tr>
+            `;
+
+            html += `
+                <tr class="grand-summary-row">
+
+                    <td colspan="2" class="text-start">
+                        Rata-rata
+                    </td>
+            `;
+
+            res.fuelStations.forEach(function (fuelStation) {
+
+                const stationAverage = average(
+                    stationGrandTotals[fuelStation],
+                    res.hours.length * res.units.length
+                );
+
+                html += `
+                    <td class="text-center">
+                        ${displayValue(stationAverage)}
+                    </td>
+                `;
+
+            });
+
+            html += `
+                    <td class="text-center fw-bold">
+                        ${displayValue(grandAverage)}
+                    </td>
+
+                </tr>
+            `;
 
         $('#tblBody').html(html);
     }
@@ -327,18 +502,29 @@
         fuelStation = null
     ) {
 
+        const isAverage = getSummaryMode() === 'average';
+
         let html = `
             <div class="card frequency-card right-panel-card">
+
                 <div class="station-title">
                     ${escapeHtml(title)}
                 </div>
 
                 <div class="card-body p-2">
+
                     <div class="right-table-wrapper">
+
                         <table class="table table-bordered table-sm frequency-table text-center">
+
                             <thead>
+
                                 <tr>
-                                    <th rowspan="2" class="text-center align-middle">
+
+                                    <th
+                                        rowspan="2"
+                                        class="text-center align-middle"
+                                    >
                                         Unit
                                     </th>
 
@@ -349,9 +535,13 @@
                                         Frekuensi
                                     </th>
 
-                                    <th rowspan="2" class="text-center align-middle">
-                                        Total
+                                    <th
+                                        rowspan="2"
+                                        class="text-center align-middle"
+                                    >
+                                        ${isAverage ? 'Rata-rata' : 'Total'}
                                     </th>
+
                                 </tr>
 
                                 <tr>
@@ -364,30 +554,45 @@
                     ${escapeHtml(hour)}
                 </th>
             `;
+
         });
 
         html += `
                                 </tr>
+
                             </thead>
+
                             <tbody>
         `;
 
+        // ============================================================
+        // DATA PER UNIT
+        // ============================================================
+
         res.units.forEach(function (unit) {
+
             html += `
                 <tr>
+
                     <td class="text-start">
                         ${escapeHtml(unit)}
                     </td>
             `;
 
             let rowTotal = 0;
+
             res.hours.forEach(function (hour) {
+
                 let value = 0;
+
                 if (fuelStation === null) {
+
                     res.fuelStations.forEach(function (station) {
+
                         value += Number(
                             res.pivot?.[hour]?.[unit]?.[station] || 0
                         );
+
                     });
 
                 } else {
@@ -395,73 +600,148 @@
                     value = Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
+
                 }
 
                 rowTotal += value;
 
                 html += `
                     <td class="text-center">
-                        ${value}
+                        ${displayValue(value, 0)}
                     </td>
                 `;
+
             });
+
+            const rowSummary = isAverage
+                ? average(rowTotal, res.hours.length)
+                : rowTotal;
 
             html += `
                     <td class="text-center fw-bold">
-                        ${rowTotal}
+                        ${displayValue(rowSummary)}
                     </td>
+
                 </tr>
             `;
+
         });
 
-        html += `
-            <tr class="total-row">
-                <td class="text-start">
-                    Total
-                </td>
-        `;
+        // ============================================================
+        // SUMMARY AKHIR
+        // HANYA SATU: TOTAL ATAU RATA-RATA
+        // ============================================================
 
         let grandTotal = 0;
 
         res.hours.forEach(function (hour) {
-            let total = 0;
+
+            let hourTotal = 0;
+
             if (fuelStation === null) {
+
                 res.fuelStations.forEach(function (station) {
+
                     res.units.forEach(function (unit) {
-                        total += Number(
+
+                        hourTotal += Number(
                             res.pivot?.[hour]?.[unit]?.[station] || 0
                         );
+
                     });
+
                 });
 
             } else {
+
                 res.units.forEach(function (unit) {
-                    total += Number(
+
+                    hourTotal += Number(
                         res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
                     );
+
                 });
+
             }
 
-            grandTotal += total;
-            html += `
-                <td class="text-center">
-                    ${total}
-                </td>
-            `;
+            grandTotal += hourTotal;
+
         });
 
         html += `
-                <td class="text-center">
-                    ${grandTotal}
+            <tr class="grand-summary-row">
+
+                <td class="text-start">
+                    ${isAverage ? 'Rata-rata' : 'Grand Total'}
                 </td>
+        `;
+
+        res.hours.forEach(function (hour) {
+
+            let hourTotal = 0;
+
+            if (fuelStation === null) {
+
+                res.fuelStations.forEach(function (station) {
+
+                    res.units.forEach(function (unit) {
+
+                        hourTotal += Number(
+                            res.pivot?.[hour]?.[unit]?.[station] || 0
+                        );
+
+                    });
+
+                });
+
+            } else {
+
+                res.units.forEach(function (unit) {
+
+                    hourTotal += Number(
+                        res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
+                    );
+
+                });
+
+            }
+
+            const value = isAverage
+                ? average(hourTotal, res.units.length)
+                : hourTotal;
+
+            html += `
+                <td class="text-center">
+                    ${displayValue(value)}
+                </td>
+            `;
+
+        });
+
+        const tableSummary = isAverage
+            ? average(
+                grandTotal,
+                res.hours.length * res.units.length
+            )
+            : grandTotal;
+
+        html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(tableSummary)}
+                </td>
+
             </tr>
         `;
 
         html += `
                             </tbody>
+
                         </table>
+
                     </div>
+
                 </div>
+
             </div>
         `;
 
@@ -509,6 +789,8 @@
             },
 
             success: function (res) {
+                latestFrequencyResponse = res;
+
                 buildTable(res);
                 buildFuelStationTables(res);
             },
@@ -525,6 +807,16 @@
             }
         });
     }
+
+    $(document).on('change', '#summaryMode', function () {
+        if (!latestFrequencyResponse) {
+            return;
+        }
+
+        // Tabel tetap tampil. Hanya nilai/label summary yang dibangun ulang.
+        buildTable(latestFrequencyResponse);
+        buildFuelStationTables(latestFrequencyResponse);
+    });
 
     $(document).ready(function () {
         loadFrequency();

@@ -59,6 +59,40 @@
         min-height: 350px;
     }
 
+    .summary-card { border: 1px solid #dee2e6; border-radius: 6px; background: #fff; height: 100%; }
+    .summary-label { font-size: 12px; color: #6c757d; margin-bottom: 4px; }
+    .summary-value { font-size: 22px; font-weight: 700; line-height: 1.2; }
+    .summary-unit { font-size: 11px; color: #6c757d; }
+    .table-grand-total td { font-weight: 700; background: #e9ecef !important; }
+    .table-average td { font-weight: 600; background: #f8f9fa !important; }
+    .chart-fixed-height {
+        height: 600px !important;
+        min-height: 600px !important;
+        width: 100%;
+    }
+
+    .chart-card-fixed {
+        height: 634px !important;
+        min-height: 634px !important;
+        overflow: hidden;
+    }
+
+    .chart-card-fixed .card-body {
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    .chart-card-fixed .chart-fixed-height {
+        height: 600px !important;
+        min-height: 600px !important;
+    }
+
+    .chart-card-fixed .apexcharts-canvas,
+    .chart-card-fixed .apexcharts-svg {
+        height: 600px !important;
+        min-height: 600px !important;
+    }
+
     .fuel-truck-chart-card {
         border: 1px solid #dee2e6;
         background: #fff;
@@ -107,7 +141,6 @@
     .legend-breakdown {
         background: #FF4560;
     }
-
 </style>
 <div class="page-content">
     <div class="container-fluid">
@@ -131,6 +164,14 @@
                                 </select>
                             </div>
 
+                            <div class="col-6 col-md-2 mb-2">
+                                <label for="summaryMode">Tampilan</label>
+                                <select class="form-select" id="summaryMode">
+                                    <option value="total" selected>Total</option>
+                                    <option value="average">Rata-rata</option>
+                                </select>
+                            </div>
+
                             <div class="col-6 col-md-3 mb-2 d-flex align-items-end gap-2">
                                 <button id="cariStatus"
                                         class="btn btn-primary flex-fill"
@@ -146,7 +187,7 @@
                                 </button>
                             </div>
 
-                            <div class="col-12 col-md-6 mb-2 d-flex align-items-end justify-content-end">
+                            <div class="col-12 col-md-4 mb-2 d-flex align-items-end justify-content-end">
                                 <div class="status-legend d-flex align-items-center gap-3">
                                     <div class="status-legend-item">
                                         <span class="status-legend-color legend-ready"></span>
@@ -173,6 +214,13 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="row g-2 mb-3" id="frequencySummary" style="display:none;">
+            <div class="col-6 col-md-3"><div class="summary-card p-3"><div class="summary-label">Grand Total Shift</div><div class="summary-value" id="summaryGrandTotal">-</div><div class="summary-unit">refuelling</div></div></div>
+            <div class="col-6 col-md-3"><div class="summary-card p-3"><div class="summary-label">Rata-rata / Jam</div><div class="summary-value" id="summaryAveragePerHour">-</div><div class="summary-unit">refuelling / jam</div></div></div>
+            <div class="col-6 col-md-3"><div class="summary-card p-3"><div class="summary-label">Rata-rata / Fuel Truck</div><div class="summary-value" id="summaryAveragePerFuelTruck">-</div><div class="summary-unit">refuelling / truck</div></div></div>
+            <div class="col-6 col-md-3"><div class="summary-card p-3"><div class="summary-label">Rata-rata / Unit</div><div class="summary-value" id="summaryAveragePerUnit">-</div><div class="summary-unit">refuelling / unit</div></div></div>
         </div>
 
         <div class="row align-items-start">
@@ -216,20 +264,16 @@
                         </div>
                     </div>
                     <div class="col-12 mt-3">
-                        <div class="card">
+                        <div class="card chart-card-fixed">
                             <div class="card-body p-2">
-
-                                <div id="chartAllFuelTruck"></div>
-
+                                <div id="chartAllFuelTruck" class="chart-fixed-height"></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 mt-3">
-                        <div class="card">
+                        <div class="card chart-card-fixed">
                             <div class="card-body p-2">
-
-                                <div id="chartTotalFuelTruck"></div>
-
+                                <div id="chartTotalFuelTruck" class="chart-fixed-height"></div>
                             </div>
                         </div>
                     </div>
@@ -282,103 +326,188 @@
         }
     }
 
-    function buildPATable(res)
-    {
-        let header = '';
+    function displayValue(value, decimals = 0) {
+        const number = Number(value || 0);
+        if (number === 0) return '-';
+        return decimals > 0 ? number.toFixed(decimals) : Math.round(number).toLocaleString('id-ID');
+    }
 
-        header += `
+    let latestFrequencyResponse = null;
+
+    function updateSummaryVisibility() {
+        const mode = $('#summaryMode').val();
+
+        if (!latestFrequencyResponse) {
+            return;
+        }
+
+        // Summary card tetap mengikuti pilihan.
+        $('#frequencySummary').show();
+
+        if (mode === 'total') {
+            $('#summaryGrandTotal').text(
+                displayValue(latestFrequencyResponse.grandTotal)
+            );
+            // $('#summaryAveragePerHour').text('-');
+            // $('#summaryAveragePerFuelTruck').text('-');
+            // $('#summaryAveragePerUnit').text('-');
+            $('#summaryAveragePerHour').text(
+                displayValue(latestFrequencyResponse.averagePerHour, 2)
+            );
+            $('#summaryAveragePerFuelTruck').text(
+                displayValue(latestFrequencyResponse.averagePerFuelTruck, 2)
+            );
+            $('#summaryAveragePerUnit').text(
+                displayValue(latestFrequencyResponse.averagePerUnit, 2)
+            );
+        } else {
+            // $('#summaryGrandTotal').text('-');
+            $('#summaryGrandTotal').text(
+                displayValue(latestFrequencyResponse.grandTotal)
+            );
+            $('#summaryAveragePerHour').text(
+                displayValue(latestFrequencyResponse.averagePerHour, 2)
+            );
+            $('#summaryAveragePerFuelTruck').text(
+                displayValue(latestFrequencyResponse.averagePerFuelTruck, 2)
+            );
+            $('#summaryAveragePerUnit').text(
+                displayValue(latestFrequencyResponse.averagePerUnit, 2)
+            );
+        }
+
+        // Bangun ulang tabel agar kolom terakhir hanya menampilkan
+        // Total ATAU Rata-rata sesuai pilihan.
+        buildTable(latestFrequencyResponse);
+        buildPATable(latestFrequencyResponse);
+    }
+
+    function updateFrequencySummary(res) {
+        latestFrequencyResponse = res;
+
+        // Default pilihan: tidak menampilkan summary.
+        updateSummaryVisibility();
+    }
+
+    $(document).on('change', '#summaryMode', function () {
+        updateSummaryVisibility();
+    });
+
+    function buildPATable(res) {
+        const mode = $('#summaryMode').val() || 'total';
+        const isAverage = mode === 'average';
+        const lastColumnTitle = isAverage ? 'Rata-rata' : 'Total';
+
+        let header = `
             <tr>
-                <th rowspan="2" class="align-middle text-center">
-                    Unit
-                </th>
-
-                <th colspan="${res.hours.length}" class="text-center">
-                    Frekuensi
-                </th>
-
-                <th rowspan="2" class="align-middle text-center">
-                    Total
-                </th>
+                <th rowspan="2" class="align-middle text-center">Unit</th>
+                <th colspan="${res.hours.length}" class="text-center">Frekuensi</th>
+                <th rowspan="2" class="align-middle text-center">${lastColumnTitle}</th>
             </tr>
-
             <tr>
         `;
 
         res.hours.forEach(function (hour) {
-            header += `
-                <th class="text-center">
-                    ${hour}
-                </th>
-            `;
+            header += `<th class="text-center">${hour}</th>`;
         });
-        header += `
-            </tr>
-        `;
-        $('#tblPAHeader').html(header);
-        let html = '';
-        res.units.forEach(function (unit) {
 
-            html += `
-                <tr>
-                    <td class="text-start">
-                        ${unit}
-                    </td>
-            `;
+        header += `</tr>`;
+        $('#tblPAHeader').html(header);
+
+        let html = '';
+
+        res.units.forEach(function (unit) {
+            html += `<tr><td class="text-start">${unit}</td>`;
+
             let rowTotal = 0;
+
             res.hours.forEach(function (hour) {
                 let value = 0;
-                res.fuelTrucks.forEach(function (fuelTruck) {
 
+                res.fuelTrucks.forEach(function (fuelTruck) {
                     value += Number(
                         res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
                     );
                 });
 
                 rowTotal += value;
+
                 html += `
                     <td class="text-center">
-                        ${value}
+                        ${displayValue(value)}
                     </td>
                 `;
             });
 
+            const rowAverage = res.hours.length > 0
+                ? rowTotal / res.hours.length
+                : 0;
+
+            const lastValue = isAverage ? rowAverage : rowTotal;
+
             html += `
-                    <td class="text-center fw-bold">
-                        ${rowTotal}
-                    </td>
-                </tr>
+                <td class="text-center fw-bold">
+                    ${displayValue(lastValue, isAverage ? 2 : 0)}
+                </td>
+            </tr>
             `;
         });
 
+        let grandTotal = 0;
+
+        res.hours.forEach(function (hour) {
+            res.units.forEach(function (unit) {
+                res.fuelTrucks.forEach(function (fuelTruck) {
+                    grandTotal += Number(
+                        res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
+                    );
+                });
+            });
+        });
+
+        const grandAverage = res.hours.length > 0
+            ? grandTotal / res.hours.length
+            : 0;
+
         html += `
-            <tr class="table-warning">
-                <td class="text-start fw-bold">
-                    Total
+            <tr class="${isAverage ? 'table-average' : 'table-grand-total'}">
+                <td class="text-start">
+                    ${isAverage ? 'Rata-rata Shift' : 'Grand Total Shift'}
                 </td>
         `;
 
-        let grandTotal = 0;
         res.hours.forEach(function (hour) {
-            let total = 0;
+            let hourTotal = 0;
+
             res.units.forEach(function (unit) {
                 res.fuelTrucks.forEach(function (fuelTruck) {
-                    total += Number(
+                    hourTotal += Number(
                         res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
                     );
                 });
             });
 
-            grandTotal += total;
+            const hourAverage = (
+                res.units.length * res.fuelTrucks.length
+            ) > 0
+                ? hourTotal / (res.units.length * res.fuelTrucks.length)
+                : 0;
+
+            const value = isAverage ? hourAverage : hourTotal;
+
             html += `
-                <td class="text-center fw-bold">
-                    ${total}
+                <td class="text-center">
+                    ${displayValue(value, isAverage ? 2 : 0)}
                 </td>
             `;
         });
 
         html += `
-                <td class="text-center fw-bold">
-                    ${grandTotal}
+                <td class="text-center">
+                    ${displayValue(
+                        isAverage ? grandAverage : grandTotal,
+                        isAverage ? 2 : 0
+                    )}
                 </td>
             </tr>
         `;
@@ -386,306 +515,141 @@
         $('#tblPABody').html(html);
     }
 
-    function buildFuelTruckCharts(res)
-    {
+    const FIXED_CHART_HEIGHT = 700;
+
+    function normalizeHorizontalBars(chartId, barHeight = 60) {
+        const root = document.querySelector('#' + chartId);
+        if (!root) return;
+
+        const bars = root.querySelectorAll('.apexcharts-bar-area');
+        bars.forEach(function (bar) {
+            const tag = bar.tagName.toLowerCase();
+
+            if (tag === 'path') {
+                const d = bar.getAttribute('d');
+                if (!d) return;
+
+                // ApexCharts horizontal bars are rendered as paths. Use the
+                // bounding box to calculate the center and rewrite the path
+                // only when it is a simple horizontal rectangle.
+                try {
+                    const box = bar.getBBox();
+                    const y = box.y + (box.height / 2);
+                    const x = box.x;
+                    const w = box.width;
+                    const h = barHeight;
+
+                    bar.setAttribute(
+                        'd',
+                        `M ${x} ${y - h / 2} L ${x + w} ${y - h / 2} ` +
+                        `L ${x + w} ${y + h / 2} L ${x} ${y + h / 2} Z`
+                    );
+                } catch (e) {
+                    // Ignore SVG elements that cannot be measured yet.
+                }
+            }
+        });
+    }
+
+    function chartDataLabelFormatter(value) {
+        const number = Number(value || 0);
+        return number === 0 ? '' : Math.round(number).toLocaleString('id-ID');
+    }
+
+    function buildFuelTruckCharts(res) {
         const container = $('#fuelTruckCharts');
         container.empty();
         res.fuelTrucks.forEach(function (fuelTruck) {
-            let seriesData = [];
-            res.hours.forEach(function (hour) {
+            const seriesData = res.hours.map(function (hour) {
                 let total = 0;
-                res.units.forEach(function (unit) {
-                    total += Number(
-                        res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
-                    );
-                });
-
-                seriesData.push(total);
+                res.units.forEach(unit => total += Number(res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0));
+                return total;
             });
-
-
-            const chartId =
-                'chartFuelTruck_' +
-                fuelTruck.replace(/[^a-zA-Z0-9]/g, '');
-
-            const html = `
+            const chartId = 'chartFuelTruck_' + fuelTruck.replace(/[^a-zA-Z0-9]/g, '');
+            container.append(`
                 <div class="col-12 mb-3">
-                    <div class="card">
+                    <div class="card chart-card-fixed">
                         <div class="card-body p-2">
-                            <div id="${chartId}"></div>
+                            <div id="${chartId}" class="chart-fixed-height"></div>
                         </div>
                     </div>
                 </div>
-            `;
-
-            container.append(html);
-            const options = {
+            `);
+            const chart = new ApexCharts(document.querySelector('#' + chartId), {
                 chart: {
-                    type: 'bar',
-                    height: 360,
-                    toolbar: {
-                        show: false
-                    }
-                },
-
-                series: [
-                    {
-                        name: fuelTruck,
-                        data: seriesData
-                    }
-                ],
-
-                plotOptions: {
-                    bar: {
-                        horizontal: true,
-                        barHeight: '55%'
-                    }
-                },
-
-                dataLabels: {
-                    enabled: false
-                },
-
-                xaxis: {
-                    categories: res.hours,
-                    title: {
-                        text: 'Frekuensi refuelling'
-                    }
-
-                },
-
-                yaxis: {
-                    title: {
-                        text: 'Jam'
-                    }
-                },
-
-                title: {
-                    text:
-                        'Distribusi frekuensi refuelling fuel truck ' +
-                        fuelTruck,
-                    align: 'center',
-                    style: {
-                        fontSize: '16px',
-                        fontWeight: 600
-                    }
-
-                },
-
-                legend: {
-                    position: 'bottom'
-                },
-
-                tooltip: {
-                    y: {
-                        formatter: function (value) {
-                            return value + ' refuelling';
-                        }
-                    }
-
-                }
-
-            };
-
-
-            const chart = new ApexCharts(
-                document.querySelector('#' + chartId),
-                options
-            );
-
-            chart.render();
-
+                        type: 'bar',
+                        height: FIXED_CHART_HEIGHT,
+                        parentHeightOffset: 0,
+                        redrawOnParentResize: true,
+                        toolbar: { show: false }
+                    },
+                series: [{ name: fuelTruck, data: seriesData }],
+                plotOptions: { bar: { horizontal: true, barHeight: '80%' } },
+                dataLabels: { enabled: true, formatter: chartDataLabelFormatter, offsetX: 8, style: { fontSize: '11px', fontWeight: 600 } },
+                xaxis: { categories: res.hours, title: { text: 'Frekuensi refuelling' } },
+                yaxis: { title: { text: 'Jam' } },
+                title: { text: 'Distribusi frekuensi refuelling fuel truck ' + fuelTruck, align: 'center', style: { fontSize: '16px', fontWeight: 600 } },
+                legend: { position: 'bottom' },
+                tooltip: { y: { formatter: value => Number(value || 0).toLocaleString('id-ID') + ' refuelling' } }
+            });
+            chart.render().then(function () {
+                normalizeHorizontalBars(chartId, 60);
+            });
         });
     }
 
-    function buildAllFuelTruckChart(res)
-    {
-        const series = [];
-        res.fuelTrucks.forEach(function (fuelTruck) {
-            const data = [];
-            res.hours.forEach(function (hour) {
+    function buildAllFuelTruckChart(res) {
+        const series = res.fuelTrucks.map(function (fuelTruck) {
+            return { name: fuelTruck, data: res.hours.map(function (hour) {
                 let total = 0;
-                res.units.forEach(function (unit) {
-                    total += Number(
-                        res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
-                    );
-
-                });
-                data.push(total);
-            });
-
-            series.push({
-                name: fuelTruck,
-                data: data
-            });
-
+                res.units.forEach(unit => total += Number(res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0));
+                return total;
+            }) };
         });
-
-
-        const options = {
-            chart: {
-                type: 'bar',
-                height: 550,
-                toolbar: {
-                    show: false
-                }
-            },
-
-            series: series,
-            plotOptions: {
-                bar: {
-                    horizontal: true,
-                    barHeight: '65%'
-                }
-
-            },
-
-            dataLabels: {
-                enabled: false
-            },
-
-            xaxis: {
-                categories: res.hours,
-                title: {
-                    text: 'Frekuensi refuelling'
-                }
-            },
-
-            yaxis: {
-                title: {
-                    text: 'Jam'
-                }
-            },
-
-            title: {
-                text: 'Distribusi frekuensi refuelling fuel truck',
-                align: 'center',
-                style: {
-                    fontSize: '16px',
-                    fontWeight: 600
-                }
-            },
-
-            legend: {
-                position: 'bottom',
-                horizontalAlign: 'center'
-            },
-
-            tooltip: {
-                y: {
-                    formatter: function (value) {
-                        return value + ' refuelling';
-                    }
-                }
-            }
-        };
-
-
         $('#chartAllFuelTruck').empty();
-        const chart = new ApexCharts(
-            document.querySelector('#chartAllFuelTruck'),
-            options
-        );
-
-        chart.render();
-    }
-
-    function buildTotalFuelTruckChart(res)
-    {
-        const data = [];
-        res.hours.forEach(function (hour) {
-            let total = 0;
-            res.fuelTrucks.forEach(function (fuelTruck) {
-                res.units.forEach(function (unit) {
-                    total += Number(
-                        res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
-                    );
-                });
-
-            });
-
-            data.push(total);
-
-        });
-
-
-        const options = {
+        new ApexCharts(document.querySelector('#chartAllFuelTruck'), {
             chart: {
                 type: 'bar',
-                height: 550,
-                toolbar: {
-                    show: false
-                }
-
+                height: FIXED_CHART_HEIGHT,
+                parentHeightOffset: 0,
+                redrawOnParentResize: true,
+                toolbar: { show: false }
             },
-
-            series: [
-                {
-                    name: 'Total',
-                    data: data
-                }
-
-            ],
-
-            plotOptions: {
-                bar: {
-                    horizontal: true,
-                    barHeight: '55%'
-                }
-
-            },
-
-            dataLabels: {
-                enabled: false
-            },
-
-            xaxis: {
-                categories: res.hours,
-                title: {
-                    text: 'Frekuensi refuelling'
-                }
-            },
-
-            yaxis: {
-                title: {
-                    text: 'Jam'
-                }
-
-            },
-
-            title: {
-                text: 'Distribusi frekuensi refuelling fuel truck',
-                align: 'center',
-                style: {
-                    fontSize: '16px',
-                    fontWeight: 600
-                }
-            },
-
-            legend: {
-                position: 'bottom'
-            },
-
-            tooltip: {
-                y: {
-                    formatter: function (value) {
-                        return value + ' refuelling';
-                    }
-                }
-            }
-        };
-
-
-        $('#chartTotalFuelTruck').empty();
-        const chart = new ApexCharts(
-            document.querySelector('#chartTotalFuelTruck'),
-            options
-        );
-        chart.render();
+            series: series,
+            plotOptions: { bar: { horizontal: true, barHeight: '100%' } },
+            dataLabels: { enabled: true, formatter: chartDataLabelFormatter, offsetX: 8, style: { fontSize: '16px', fontWeight: 600, colors: ['#000000'] } },
+            xaxis: { categories: res.hours, title: { text: 'Frekuensi refuelling' } },
+            yaxis: { title: { text: 'Jam' } },
+            title: { text: 'Distribusi frekuensi refuelling seluruh fuel truck', align: 'center', style: { fontSize: '20px', fontWeight: 600 } },
+            legend: { position: 'bottom', horizontalAlign: 'center' },
+            tooltip: { y: { formatter: value => Number(value || 0).toLocaleString('id-ID') + ' refuelling' } }
+        }).render();
     }
 
-    function formatNumber(value) {
-        return Number(value || 0).toFixed(1);
+    function buildTotalFuelTruckChart(res) {
+        const data = res.hours.map(function (hour) {
+            let total = 0;
+            res.fuelTrucks.forEach(fuelTruck => res.units.forEach(unit => total += Number(res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0)));
+            return total;
+        });
+        $('#chartTotalFuelTruck').empty();
+        new ApexCharts(document.querySelector('#chartTotalFuelTruck'), {
+            chart: {
+                type: 'bar',
+                height: FIXED_CHART_HEIGHT,
+                parentHeightOffset: 0,
+                redrawOnParentResize: true,
+                toolbar: { show: false }
+            },
+            series: [{ name: 'Total', data: data }],
+            plotOptions: { bar: { horizontal: true, barHeight: '80%' } },
+            dataLabels: { enabled: true, formatter: chartDataLabelFormatter, offsetX: 8, style: { fontSize: '11px', fontWeight: 600 } },
+            xaxis: { categories: res.hours, title: { text: 'Frekuensi refuelling' } },
+            yaxis: { title: { text: 'Jam' } },
+            title: { text: 'Total frekuensi refuelling per jam', align: 'center', style: { fontSize: '16px', fontWeight: 600 } },
+            legend: { position: 'bottom' },
+            tooltip: { y: { formatter: value => Number(value || 0).toLocaleString('id-ID') + ' refuelling' } }
+        }).render();
     }
 
     function loadFrequency()
@@ -703,6 +667,7 @@
             success: function (res) {
                 buildTable(res);
                 buildPATable(res);
+                updateFrequencySummary(res);
                 buildFuelTruckCharts(res);
                 buildAllFuelTruckChart(res);
                 buildTotalFuelTruckChart(res);
@@ -719,36 +684,24 @@
         });
     }
 
-    function buildTable(res)
-    {
-        let header = '';
-        header += `
+    function buildTable(res) {
+        const mode = $('#summaryMode').val() || 'total';
+        const isAverage = mode === 'average';
+        const lastColumnTitle = isAverage ? 'Rata-rata' : 'Total';
+
+        let header = `
             <tr>
-                <th rowspan="2" class="align-middle text-center">
-                    Jam
-                </th>
-
-                <th rowspan="2" class="align-middle text-center">
-                    Unit
-                </th>
-
-                <th colspan="${res.fuelTrucks.length}" class="text-center">
-                    Frekuensi
-                </th>
-
-                <th rowspan="2" class="align-middle text-center">
-                    Total
-                </th>
+                <th rowspan="2" class="align-middle text-center">Jam</th>
+                <th rowspan="2" class="align-middle text-center">Unit</th>
+                <th colspan="${res.fuelTrucks.length}" class="text-center">Frekuensi</th>
+                <th rowspan="2" class="align-middle text-center">${lastColumnTitle}</th>
             </tr>
-
             <tr>
         `;
 
         res.fuelTrucks.forEach(function (fuelTruck) {
             const status = res.fuelTruckStatus?.[fuelTruck] || 'Unknown';
-            const statusClass = 'unit-' + status
-                .toLowerCase()
-                .replace(/\s+/g, '-');
+            const statusClass = 'unit-' + status.toLowerCase().replace(/\s+/g, '-');
 
             header += `
                 <th class="text-center ${statusClass}">
@@ -757,83 +710,174 @@
             `;
         });
 
-        header += `
-            </tr>
-        `;
-
+        header += `</tr>`;
         $('#tblHeader').html(header);
 
         let html = '';
+
         res.hours.forEach(function (hour) {
             res.units.forEach(function (unit, index) {
                 html += `<tr>`;
-                if (index === 0) {
 
+                if (index === 0) {
                     html += `
-                        <td
-                            rowspan="${res.units.length}"
-                            class="align-middle text-center fw-semibold"
-                        >
+                        <td rowspan="${res.units.length}"
+                            class="align-middle text-center fw-semibold">
                             ${hour}
                         </td>
                     `;
                 }
 
-                html += `
-                    <td class="text-start">
-                        ${unit}
-                    </td>
-                `;
+                html += `<td class="text-start">${unit}</td>`;
 
                 let rowTotal = 0;
+
                 res.fuelTrucks.forEach(function (fuelTruck) {
                     const value = Number(
                         res.pivot?.[hour]?.[unit]?.[fuelTruck] || 0
                     );
+
                     rowTotal += value;
+
                     html += `
                         <td class="text-center">
-                            ${value}
+                            ${displayValue(value)}
                         </td>
                     `;
                 });
 
+                const rowAverage = res.fuelTrucks.length > 0
+                    ? rowTotal / res.fuelTrucks.length
+                    : 0;
+
+                const lastValue = isAverage ? rowAverage : rowTotal;
+
                 html += `
                     <td class="text-center fw-bold">
-                        ${rowTotal}
+                        ${displayValue(lastValue, isAverage ? 2 : 0)}
                     </td>
                 `;
 
                 html += `</tr>`;
             });
 
+            // Total / rata-rata untuk setiap jam.
+            let totalHour = 0;
+
+            res.fuelTrucks.forEach(function (fuelTruck) {
+                totalHour += Number(
+                    res.totalsByHour?.[hour]?.[fuelTruck] || 0
+                );
+            });
+
+            const averageHour = (
+                res.units.length * res.fuelTrucks.length
+            ) > 0
+                ? totalHour / (res.units.length * res.fuelTrucks.length)
+                : 0;
+
+            const hourValue = isAverage ? averageHour : totalHour;
+
             html += `
                 <tr class="table-warning">
                     <td colspan="2" class="text-start fw-bold">
-                        Total
+                        ${isAverage ? 'Rata-rata' : 'Total'} ${hour}
                     </td>
             `;
 
-            let totalHour = 0;
+            // Saat mode rata-rata, setiap fuel truck juga ditampilkan
+            // sebagai rata-rata terhadap jumlah unit.
             res.fuelTrucks.forEach(function (fuelTruck) {
-                const value = Number(
+                const fuelTruckHourTotal = Number(
                     res.totalsByHour?.[hour]?.[fuelTruck] || 0
                 );
-                totalHour += value;
+
+                const fuelTruckHourAverage = res.units.length > 0
+                    ? fuelTruckHourTotal / res.units.length
+                    : 0;
+
+                const value = isAverage
+                    ? fuelTruckHourAverage
+                    : fuelTruckHourTotal;
+
                 html += `
                     <td class="text-center fw-bold">
-                        ${value}
+                        ${displayValue(value, isAverage ? 2 : 0)}
                     </td>
                 `;
             });
 
             html += `
                     <td class="text-center fw-bold">
-                        ${totalHour}
+                        ${displayValue(hourValue, isAverage ? 2 : 0)}
                     </td>
                 </tr>
             `;
         });
+
+        // BAGIAN PALING BAWAH SELALU MENAMPILKAN KEDUANYA:
+        // Grand Total Shift dan Rata-rata Shift.
+        // Select Total/Rata-rata hanya mengatur kolom terakhir dan
+        // baris per jam, bukan dua baris ringkasan paling bawah ini.
+        const grandTotal = Number(res.grandTotal || 0);
+
+        // Grand Total Shift
+        html += `
+            <tr class="table-grand-total">
+                <td colspan="2" class="text-start fw-bold">
+                    Grand Total Shift
+                </td>
+        `;
+
+        res.fuelTrucks.forEach(function (fuelTruck) {
+            const truckTotal = Number(
+                res.fuelTruckGrandTotal?.[fuelTruck] || 0
+            );
+
+            html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(truckTotal, 0)}
+                </td>
+            `;
+        });
+
+        html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(grandTotal, 0)}
+                </td>
+            </tr>
+        `;
+
+        // Rata-rata Shift
+        html += `
+            <tr class="table-average">
+                <td colspan="2" class="text-start fw-bold">
+                    Rata-rata Shift
+                </td>
+        `;
+
+        res.fuelTrucks.forEach(function (fuelTruck) {
+            const truckTotal = Number(
+                res.fuelTruckGrandTotal?.[fuelTruck] || 0
+            );
+
+            const truckAverage = res.hours.length > 0
+                ? truckTotal / res.hours.length
+                : 0;
+
+            html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(truckAverage, 2)}
+                </td>
+            `;
+        });
+
+        html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(res.averagePerHour || 0, 2)}
+                </td>
+            </tr>
+        `;
 
         $('#tblBody').html(html);
     }

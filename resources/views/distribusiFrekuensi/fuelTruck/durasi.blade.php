@@ -302,8 +302,14 @@
     .legend-breakdown {
         background: #FF4560;
     }
-</style>
 
+        .grand-total-row td,
+        .grand-average-row td {
+            font-weight: 700;
+            background-color: #fff3cd !important;
+        }
+
+</style>
 
 <div class="page-content">
     <div class="container-fluid">
@@ -327,6 +333,14 @@
                                 </select>
                             </div>
 
+                            <div class="col-6 col-md-2 mb-2">
+                                <label for="summaryMode">Tampilan</label>
+                                <select class="form-select" id="summaryMode">
+                                    <option value="total" selected>Total</option>
+                                    <option value="average">Rata-rata</option>
+                                </select>
+                            </div>
+
                             <div class="col-6 col-md-3 mb-2 d-flex align-items-end gap-2">
                                 <button id="cariStatus"
                                         class="btn btn-primary flex-fill"
@@ -342,7 +356,7 @@
                                 </button>
                             </div>
 
-                            <div class="col-12 col-md-6 mb-2 d-flex align-items-end justify-content-end">
+                            <div class="col-12 col-md-4 mb-2 d-flex align-items-end justify-content-end">
                                 <div class="status-legend d-flex align-items-center gap-3">
                                     <div class="status-legend-item">
                                         <span class="status-legend-color legend-ready"></span>
@@ -372,7 +386,7 @@
         </div>
 
         <div class="row g-3">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6" id="totalDurationSection">
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -384,7 +398,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-6" id="averageDurationSection">
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
@@ -416,6 +430,27 @@
         const shiftInput = document.getElementById('shift');
         const cariButton = document.getElementById('cariStatus');
         const loading = document.getElementById('durationLoading');
+        const summaryMode = document.getElementById('summaryMode');
+        const totalDurationSection = document.getElementById('totalDurationSection');
+        const averageDurationSection = document.getElementById('averageDurationSection');
+
+        function applySummaryMode() {
+            const mode = summaryMode ? summaryMode.value : 'total';
+
+            // TABEL TETAP DITAMPILKAN.
+            // summaryMode hanya mengubah label/nilai summary.
+            $('.summary-mode-label').text(
+                mode === 'average' ? 'Rata-rata' : 'Total'
+            );
+
+            if (typeof renderDurationTables === 'function' && latestDurationResponse) {
+                renderDurationTables(latestDurationResponse);
+            }
+        }
+
+        if (summaryMode) {
+            summaryMode.addEventListener('change', applySummaryMode);
+        }
 
         if (typeof flatpickr !== 'undefined') {
             flatpickr(tanggalInput,
@@ -478,136 +513,282 @@
 
         }
         function renderDurationTable(res) {
+            const summaryMode = document.getElementById('summaryMode')?.value || 'total';
+            const isAverage = summaryMode === 'average';
+
             const hours = res.hours || [];
             const units = res.units || [];
             const fuelTrucks = res.fuelTrucks || [];
             const durationPivot = res.durationPivot || {};
+            const averageDuration = res.averageDuration || {};
             const fuelTruckStatus = res.fuelTruckStatus || {};
-            let header = '';
-            header += `
+
+            let header = `
                 <tr>
                     <th rowspan="2">Jam</th>
                     <th rowspan="2">Unit</th>
-                    <th colspan="${fuelTrucks.length}" class="duration-header-title">Durasi</th>
-                    <th rowspan="2">Total</th>
+                    <th colspan="${fuelTrucks.length}" class="duration-header-title">
+                        Durasi (menit)
+                    </th>
+                    <th rowspan="2">${isAverage ? 'Rata-rata' : 'Total'}</th>
                 </tr>
-            `;
-            header += `
                 <tr>
             `;
 
-            fuelTrucks.forEach(
-                function (fuelTruck) {
-                    const status =
-                        fuelTruckStatus[fuelTruck]
-                        || 'Unknown';
+            fuelTrucks.forEach(function (fuelTruck) {
+                const status = fuelTruckStatus[fuelTruck] || 'Unknown';
+                const statusClass = getStatusClass(status);
 
-                    const statusClass =
-                        getStatusClass(status);
+                header += `
+                    <th class="${statusClass}" title="Status: ${status}">
+                        ${fuelTruck}
+                    </th>
+                `;
+            });
 
-                    header += `
-                        <th class="${statusClass}" title="Status: ${status}">
-                            ${fuelTruck}
-                        </th>
+            header += `</tr>`;
+
+            document.getElementById('tblDurationHeader').innerHTML = header;
+
+            let body = '';
+
+            // =========================================================
+            // DATA PER JAM / UNIT
+            // =========================================================
+            hours.forEach(function (hour) {
+                let firstUnit = true;
+
+                units.forEach(function (unit) {
+                    body += '<tr>';
+
+                    if (firstUnit) {
+                        body += `
+                            <td rowspan="${units.length}" class="hour-cell">
+                                ${hour}
+                            </td>
+                        `;
+                        firstUnit = false;
+                    }
+
+                    body += `
+                        <td class="unit-name">
+                            ${unit}
+                        </td>
                     `;
-                }
-            );
 
-            header += `
+                    let rowTotal = 0;
+
+                    fuelTrucks.forEach(function (fuelTruck) {
+                        const value = parseFloat(
+                            durationPivot?.[hour]?.[unit]?.[fuelTruck] ?? 0
+                        ) || 0;
+
+                        rowTotal += value;
+
+                        body += `
+                            <td class="text-center">
+                                ${formatDuration(value)}
+                            </td>
+                        `;
+                    });
+
+                    // PENTING:
+                    // Mode rata-rata memakai sumber yang sama dengan
+                    // tabel "Durasi rata-rata refuelling semua fuel truck",
+                    // yaitu res.averageDuration[unit][hour].
+                    const rowSummary = isAverage
+                        ? (
+                            parseFloat(
+                                averageDuration?.[unit]?.[hour] ?? 0
+                            ) || 0
+                        )
+                        : rowTotal;
+
+                    body += `
+                        <td class="text-center fw-bold">
+                            ${formatDuration(rowSummary)}
+                        </td>
+                    `;
+
+                    body += '</tr>';
+                });
+
+                // =====================================================
+                // SUMMARY PER JAM
+                // =====================================================
+                body += `
+                    <tr class="duration-total-row">
+                        <td colspan="2" class="text-start fw-bold">
+                            ${isAverage ? 'Rata-rata' : 'Total'}
+                        </td>
+                `;
+
+                fuelTrucks.forEach(function (fuelTruck) {
+                    let truckTotal = 0;
+
+                    units.forEach(function (unit) {
+                        truckTotal += parseFloat(
+                            durationPivot?.[hour]?.[unit]?.[fuelTruck] ?? 0
+                        ) || 0;
+                    });
+
+                    // Kolom fuel truck tetap menampilkan total aktual.
+                    // Mode rata-rata diterapkan pada kolom summary terakhir.
+                    body += `
+                        <td class="text-center">
+                            ${isAverage
+                                ? '-'
+                                : formatDuration(truckTotal)}
+                        </td>
+                    `;
+                });
+
+                let hourSummary = 0;
+
+                if (isAverage) {
+                    // Sama persis dengan konsep tabel kedua:
+                    // rata-rata dari nilai averageDuration per unit
+                    // pada jam tersebut.
+                    let sumAverage = 0;
+                    let averageCount = 0;
+
+                    units.forEach(function (unit) {
+                        const value = parseFloat(
+                            averageDuration?.[unit]?.[hour] ?? 0
+                        ) || 0;
+
+                        if (value > 0) {
+                            sumAverage += value;
+                            averageCount++;
+                        }
+                    });
+
+                    hourSummary = averageCount > 0
+                        ? sumAverage / averageCount
+                        : 0;
+                } else {
+                    units.forEach(function (unit) {
+                        fuelTrucks.forEach(function (fuelTruck) {
+                            hourSummary += parseFloat(
+                                durationPivot?.[hour]?.[unit]?.[fuelTruck] ?? 0
+                            ) || 0;
+                        });
+                    });
+                }
+
+                body += `
+                        <td class="text-center fw-bold">
+                            ${formatDuration(hourSummary)}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            // =========================================================
+            // GRAND TOTAL
+            // =========================================================
+            let grandTotal = 0;
+            let grandAverageSum = 0;
+            let grandAverageCount = 0;
+
+            const truckGrandTotals = {};
+
+            fuelTrucks.forEach(function (fuelTruck) {
+                truckGrandTotals[fuelTruck] = 0;
+            });
+
+            hours.forEach(function (hour) {
+                units.forEach(function (unit) {
+
+                    // Untuk Grand Total mode Total
+                    fuelTrucks.forEach(function (fuelTruck) {
+                        const value = parseFloat(
+                            durationPivot?.[hour]?.[unit]?.[fuelTruck] ?? 0
+                        ) || 0;
+
+                        truckGrandTotals[fuelTruck] += value;
+                        grandTotal += value;
+                    });
+
+                    // Untuk Grand Total mode Rata-rata,
+                    // gunakan sumber averageDuration yang sama
+                    // dengan tabel kedua.
+                    const avgValue = parseFloat(
+                        averageDuration?.[unit]?.[hour] ?? 0
+                    ) || 0;
+
+                    if (avgValue > 0) {
+                        grandAverageSum += avgValue;
+                        grandAverageCount++;
+                    }
+                });
+            });
+
+            body += `
+                <tr class="grand-total-row">
+                    <td colspan="2" class="text-start fw-bold">
+                        ${isAverage ? 'Grand Total' : 'Grand Total'}
+                    </td>
+            `;
+
+            fuelTrucks.forEach(function (fuelTruck) {
+                body += `
+                    <td class="text-center fw-bold">
+                        ${isAverage
+                            ? '-'
+                            : formatDuration(truckGrandTotals[fuelTruck])}
+                    </td>
+                `;
+            });
+
+            const grandTotalDisplay = isAverage
+                ? (
+                    grandAverageCount > 0
+                        ? grandAverageSum / grandAverageCount
+                        : 0
+                )
+                : grandTotal;
+
+            body += `
+                    <td class="text-center fw-bold">
+                        ${formatDuration(grandTotalDisplay)}
+                    </td>
                 </tr>
             `;
 
+            // =========================================================
+            // RATA-RATA KESELURUHAN
+            // SELALU DITAMPILKAN
+            // =========================================================
+            body += `
+                <tr class="grand-average-row">
+                    <td colspan="2" class="text-start fw-bold">
+                        Rata-rata
+                    </td>
+            `;
 
-            document.getElementById(
-                'tblDurationHeader'
-            ).innerHTML = header;
+            fuelTrucks.forEach(function (fuelTruck) {
+                const truckAverage = 0;
 
-            let body = '';
-            hours.forEach(
-                function (hour) {
-                    let firstUnit = true;
-                    units.forEach(
-                        function (unit) {
-                            body += '<tr>';
-                            if (firstUnit) {
-                                body += `
-                                    <td rowspan="${units.length}" class="hour-cell">${hour}</td>
-                                `;
-                                firstUnit = false;
-                            }
-                            body += `
-                                <td class="unit-name">
-                                    ${unit}
-                                </td>
+                body += `
+                    <td class="text-center fw-bold">
+                        ${isAverage ? '-' : '-'}
+                    </td>
+                `;
+            });
 
-                            `;
+            const overallAverage = grandAverageCount > 0
+                ? grandAverageSum / grandAverageCount
+                : 0;
 
-                            let rowTotal = 0;
-                            fuelTrucks.forEach(
-                                function (fuelTruck) {
-                                    const value =
-                                        durationPivot
-                                            ?. [hour]
-                                            ?. [unit]
-                                            ?. [fuelTruck]
-                                        ?? 0;
-
-                                    rowTotal +=
-                                        parseFloat(
-                                            value || 0
-                                        );
-
-                                    body += `
-                                        <td class="text-center">
-                                            ${formatDuration(value)}
-                                        </td>
-                                    `;
-                                }
-                            );
-
-                            body += `
-                                <td class="text-center fw-bold">${formatDuration(rowTotal)}</td>
-                            `;
-                            body += '</tr>';
-                        }
-                    );
-                    body += `
-                        <tr class="duration-total-row">
-                            <td colspan="2" class="text-start">Total</td>
-                    `;
-                    let hourGrandTotal = 0;
-                    fuelTrucks.forEach(
-                        function (fuelTruck) {
-                            let total = 0;
-                            units.forEach(
-                                function (unit) {
-                                    total +=
-                                        parseFloat(
-                                            durationPivot
-                                                ?. [hour]
-                                                ?. [unit]
-                                                ?. [fuelTruck]
-                                            ?? 0
-                                        );
-                                }
-                            );
-                            hourGrandTotal += total;
-                            body += `
-                                <td class="text-center">${formatDuration(total)}</td>
-                            `;
-                        }
-                    );
-                    body += `
-                            <td class="text-center">
-                                ${formatDuration(hourGrandTotal)}
-                            </td>
-                        </tr>
-                    `;
-                }
-            );
+            body += `
+                    <td class="text-center fw-bold">
+                        ${formatDuration(overallAverage)}
+                    </td>
+                </tr>
+            `;
 
             document.getElementById('tblDurationBody').innerHTML = body;
-
         }
 
         function renderAverageDurationTable(res) {
@@ -619,7 +800,7 @@
                 <tr>
                     <th rowspan="2">Unit</th>
                     <th colspan="${hours.length}" class="average-title">
-                        Durasi rata-rata refuelling semua fuel truck
+                        Durasi rata-rata refuelling semua fuel truck (menit)
                     </th>
                     <th rowspan="2">Total</th>
                 </tr>
@@ -767,6 +948,14 @@
 
         }
 
+        let latestDurationResponse = null;
+
+        document.getElementById('summaryMode')?.addEventListener('change', function () {
+            if (latestDurationResponse) {
+                renderDurationTable(latestDurationResponse);
+            }
+        });
+
         function loadDuration() {
             const tanggalStatus = tanggalInput.value.trim();
             const shift = shiftInput.value;
@@ -813,6 +1002,7 @@
 
             .then(
                 function (res) {
+                    latestDurationResponse = res;
                     renderDurationTable(res);
                     renderAverageDurationTable(res);
                 }
