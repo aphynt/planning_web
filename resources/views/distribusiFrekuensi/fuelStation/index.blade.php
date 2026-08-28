@@ -397,101 +397,136 @@
         });
 
         // ============================================================
-        // SUMMARY AKHIR
-        // HANYA MENAMPILKAN SESUAI PILIHAN summaryMode.
+        // GRAND TOTAL PER UNIT
+        //
+        // Contoh:
+        // Grand Total | Hauler | 3 | 16 | 19
+        //             | Grader | - | -  | -
+        //             | Dozer  | - | 6  | 6
+        //
+        // TOTAL = SM-B1 + SM-B2
         // ============================================================
 
-        let grandTotal = 0;
-        const stationGrandTotals = {};
+        res.units.forEach(function (unit, unitIndex) {
 
-        res.fuelStations.forEach(function (fuelStation) {
+            html += `<tr class="grand-summary-row">`;
 
-            stationGrandTotals[fuelStation] = 0;
-
-            res.hours.forEach(function (hour) {
-
-                res.units.forEach(function (unit) {
-
-                    stationGrandTotals[fuelStation] += Number(
-                        res.pivot?.[hour]?.[unit]?.[fuelStation] || 0
-                    );
-
-                });
-
-            });
-
-            grandTotal += stationGrandTotals[fuelStation];
-
-        });
-
-            const totalDataCount =
-                res.hours.length *
-                res.units.length *
-                res.fuelStations.length;
-
-            const grandAverage = average(
-                grandTotal,
-                totalDataCount
-            );
-
-            html += `
-                <tr class="grand-summary-row">
-
-                    <td colspan="2" class="text-start">
+            if (unitIndex === 0) {
+                html += `
+                    <td
+                        rowspan="${res.units.length}"
+                        class="text-start align-middle fw-bold"
+                    >
                         Grand Total
                     </td>
-            `;
-
-            res.fuelStations.forEach(function (fuelStation) {
-
-                html += `
-                    <td class="text-center">
-                        ${displayValue(
-                            stationGrandTotals[fuelStation]
-                        )}
-                    </td>
                 `;
-
-            });
-
-            html += `
-                    <td class="text-center fw-bold">
-                        ${displayValue(grandTotal)}
-                    </td>
-
-                </tr>
-            `;
+            }
 
             html += `
-                <tr class="grand-summary-row">
-
-                    <td colspan="2" class="text-start">
-                        Rata-rata
-                    </td>
+                <td class="text-start fw-bold">
+                    ${escapeHtml(unit)}
+                </td>
             `;
+
+            let unitTotal = 0;
 
             res.fuelStations.forEach(function (fuelStation) {
 
-                const stationAverage = average(
-                    stationGrandTotals[fuelStation],
-                    res.hours.length * res.units.length
+                const stationTotal = Number(
+                    res.totalsByUnit?.[unit]?.[fuelStation] || 0
                 );
 
+                unitTotal += stationTotal;
+
                 html += `
-                    <td class="text-center">
-                        ${displayValue(stationAverage)}
+                    <td class="text-center fw-bold">
+                        ${displayValue(stationTotal, 0)}
                     </td>
                 `;
-
             });
 
+            // Total unit HARUS merupakan penjumlahan semua station.
             html += `
-                    <td class="text-center fw-bold">
-                        ${displayValue(grandAverage)}
-                    </td>
-
-                </tr>
+                <td class="text-center fw-bold">
+                    ${displayValue(unitTotal, 0)}
+                </td>
             `;
+
+            html += `</tr>`;
+        });
+
+
+        // ============================================================
+        // RATA-RATA PER UNIT
+        //
+        // Rata-rata dihitung per station:
+        // total station / jumlah jam
+        //
+        // Contoh:
+        // Hauler = 3 / 12 = 0.25
+        //          16 / 12 = 1.33
+        //          19 / 12 = 1.58
+        //
+        // Jadi BUKAN dibagi jumlah unit x jumlah station.
+        // ============================================================
+
+        res.units.forEach(function (unit, unitIndex) {
+
+            html += `<tr class="grand-summary-row">`;
+
+            if (unitIndex === 0) {
+                html += `
+                    <td
+                        rowspan="${res.units.length}"
+                        class="text-start align-middle fw-bold"
+                    >
+                        Rata-rata
+                    </td>
+                `;
+            }
+
+            html += `
+                <td class="text-start fw-bold">
+                    ${escapeHtml(unit)}
+                </td>
+            `;
+
+            let unitTotal = 0;
+
+            res.fuelStations.forEach(function (fuelStation) {
+
+                const stationTotal = Number(
+                    res.totalsByUnit?.[unit]?.[fuelStation] || 0
+                );
+
+                unitTotal += stationTotal;
+
+                // Rata-rata per unit/station = total / jumlah jam.
+                const stationAverage = res.hours.length > 0
+                    ? stationTotal / res.hours.length
+                    : 0;
+
+                html += `
+                    <td class="text-center fw-bold">
+                        ${displayValue(stationAverage, 2)}
+                    </td>
+                `;
+            });
+
+            // Rata-rata total unit = total seluruh station / jumlah jam.
+            const unitAverage = res.hours.length > 0
+                ? unitTotal / res.hours.length
+                : 0;
+
+            html += `
+                <td class="text-center fw-bold">
+                    ${displayValue(unitAverage, 2)}
+                </td>
+            `;
+
+            html += `</tr>`;
+        });
+
 
         $('#tblBody').html(html);
     }

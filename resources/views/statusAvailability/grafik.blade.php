@@ -395,48 +395,54 @@
 
         const series = [];
 
+        // ============================================================
+        // SUMBER DATA KHUSUS GRAFIK
+        //
+        // chartPivot:
+        //   durasi normalized per unit, per periode = max 60 menit.
+        //
+        // chartAverage:
+        //   rata-rata semua unit, per periode = max 60 menit.
+        // ============================================================
+        const chartPivot = res.chartPivot || {};
+        const chartAverage = res.chartAverage || {};
+
         res.statuses.forEach(function (status) {
 
             const data = [];
 
             res.hours.forEach(function (hour) {
 
-                let total = 0;
+                let value = 0;
 
-                if (
-                    res.pivot[hour] &&
-                    res.pivot[hour][status]
-                ) {
+                if (selectedUnit === 'ALL') {
 
-                    if (selectedUnit === 'ALL') {
+                    // Semua unit = RATA-RATA antar unit.
+                    value = Number(
+                        chartAverage?.[hour]?.[status] || 0
+                    );
 
-                        res.units.forEach(function (unit) {
+                } else {
 
-                            if (
-                                res.pivot[hour][status][unit.id] !== undefined
-                            ) {
-                                total += Number(
-                                    res.pivot[hour][status][unit.id]
-                                );
-                            }
-
-                        });
-
-                    } else {
-
-                        if (
-                            res.pivot[hour][status][selectedUnit] !== undefined
-                        ) {
-                            total = Number(
-                                res.pivot[hour][status][selectedUnit]
-                            );
-                        }
-
-                    }
+                    // Satu unit = durasi unit tersebut.
+                    value = Number(
+                        chartPivot
+                            ?. [hour]
+                            ?. [status]
+                            ?. [selectedUnit]
+                        || 0
+                    );
                 }
 
+                // Satu status dalam satu periode tidak boleh
+                // berkontribusi lebih dari 60 menit.
+                value = Math.min(
+                    60,
+                    Math.max(0, value)
+                );
+
                 data.push(
-                    Number(total.toFixed(1))
+                    Number(value.toFixed(2))
                 );
             });
 
@@ -451,6 +457,7 @@
         }
 
         const options = {
+
             series: series,
 
             colors: [
@@ -479,7 +486,7 @@
 
             title: {
                 text: selectedUnit === 'ALL'
-                    ? 'Durasi Status All Fuel Truck'
+                    ? 'Durasi Status Rata-rata Semua Fuel Truck'
                     : 'Durasi Status ' + selectedUnit,
                 align: 'center',
                 style: {
@@ -497,18 +504,29 @@
 
             yaxis: {
                 min: 0,
-                max: selectedUnit === 'ALL'
-                    ? undefined
-                    : 60,
+
+                // PENTING:
+                // Baik satu unit maupun semua unit selalu
+                // menggunakan satu periode = 60 menit.
+                max: 60,
+
+                tickAmount: 6,
+
                 title: {
                     text: 'Durasi (Menit)'
+                },
+
+                labels: {
+                    formatter: function (value) {
+                        return Number(value).toFixed(0);
+                    }
                 }
             },
 
             tooltip: {
                 y: {
                     formatter: function (value) {
-                        return Number(value).toFixed(1) + ' menit';
+                        return Number(value).toFixed(2) + ' menit';
                     }
                 }
             },
@@ -1051,7 +1069,30 @@
         );
 
         $('#globalUnit').change(function () {
+
             pendingGlobalUnit = $(this).val();
+            globalUnit = pendingGlobalUnit;
+
+            if (availabilityChartData) {
+                renderAvailabilityChart(
+                    availabilityChartData,
+                    globalUnit
+                );
+            }
+
+            if (statusPieData) {
+                renderStatusPieChart(
+                    statusPieData,
+                    globalUnit
+                );
+            }
+
+            if (availabilityRateData) {
+                renderAvailabilityRateChart(
+                    availabilityRateData,
+                    globalUnit
+                );
+            }
         });
     });
 </script>

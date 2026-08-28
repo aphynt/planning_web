@@ -715,8 +715,12 @@
 
         let html = '';
 
+        // =========================================================
+        // DATA PER JAM DAN UNIT
+        // =========================================================
         res.hours.forEach(function (hour) {
             res.units.forEach(function (unit, index) {
+
                 html += `<tr>`;
 
                 if (index === 0) {
@@ -754,14 +758,17 @@
 
                 html += `
                     <td class="text-center fw-bold">
-                        ${displayValue(lastValue, isAverage ? 2 : 0)}
+                        ${displayValue(
+                            lastValue,
+                            isAverage ? 2 : 0
+                        )}
                     </td>
                 `;
 
                 html += `</tr>`;
             });
 
-            // Total / rata-rata untuk setiap jam.
+            // Total / rata-rata untuk setiap jam
             let totalHour = 0;
 
             res.fuelTrucks.forEach(function (fuelTruck) {
@@ -785,8 +792,6 @@
                     </td>
             `;
 
-            // Saat mode rata-rata, setiap fuel truck juga ditampilkan
-            // sebagai rata-rata terhadap jumlah unit.
             res.fuelTrucks.forEach(function (fuelTruck) {
                 const fuelTruckHourTotal = Number(
                     res.totalsByHour?.[hour]?.[fuelTruck] || 0
@@ -802,82 +807,139 @@
 
                 html += `
                     <td class="text-center fw-bold">
-                        ${displayValue(value, isAverage ? 2 : 0)}
+                        ${displayValue(
+                            value,
+                            isAverage ? 2 : 0
+                        )}
                     </td>
                 `;
             });
 
             html += `
                     <td class="text-center fw-bold">
-                        ${displayValue(hourValue, isAverage ? 2 : 0)}
+                        ${displayValue(
+                            hourValue,
+                            isAverage ? 2 : 0
+                        )}
                     </td>
                 </tr>
             `;
         });
 
-        // BAGIAN PALING BAWAH SELALU MENAMPILKAN KEDUANYA:
-        // Grand Total Shift dan Rata-rata Shift.
-        // Select Total/Rata-rata hanya mengatur kolom terakhir dan
-        // baris per jam, bukan dua baris ringkasan paling bawah ini.
-        const grandTotal = Number(res.grandTotal || 0);
 
-        // Grand Total Shift
-        html += `
-            <tr class="table-grand-total">
-                <td colspan="2" class="text-start fw-bold">
-                    Grand Total Shift
+        // =========================================================
+        // GRAND TOTAL SHIFT
+        // Setiap unit ditampilkan sebagai baris.
+        // Cell "Grand Total Shift" di-ROWSPAN seluruh unit.
+        // =========================================================
+        res.units.forEach(function (unit, unitIndex) {
+
+            html += `
+                <tr class="table-grand-total">
+            `;
+
+            if (unitIndex === 0) {
+                html += `
+                    <td rowspan="${res.units.length}"
+                        class="align-middle text-start fw-bold">
+                        Grand Total Shift
+                    </td>
+                `;
+            }
+
+            html += `
+                <td class="text-start fw-bold">
+                    ${unit}
                 </td>
-        `;
+            `;
 
-        res.fuelTrucks.forEach(function (fuelTruck) {
-            const truckTotal = Number(
-                res.fuelTruckGrandTotal?.[fuelTruck] || 0
-            );
+            let unitTotal = 0;
+
+            res.fuelTrucks.forEach(function (fuelTruck) {
+
+                const value = Number(
+                    res.totalsByUnit?.[unit]?.[fuelTruck] || 0
+                );
+
+                unitTotal += value;
+
+                html += `
+                    <td class="text-center fw-bold">
+                        ${displayValue(value, 0)}
+                    </td>
+                `;
+            });
 
             html += `
                 <td class="text-center fw-bold">
-                    ${displayValue(truckTotal, 0)}
+                    ${displayValue(unitTotal, 0)}
                 </td>
             `;
+
+            html += `</tr>`;
         });
 
-        html += `
-                <td class="text-center fw-bold">
-                    ${displayValue(grandTotal, 0)}
+
+        // =========================================================
+        // RATA-RATA SHIFT
+        // Setiap unit ditampilkan sebagai baris.
+        // Cell "Rata-rata Shift" di-ROWSPAN seluruh unit.
+        // =========================================================
+        res.units.forEach(function (unit, unitIndex) {
+
+            html += `
+                <tr class="table-average">
+            `;
+
+            if (unitIndex === 0) {
+                html += `
+                    <td rowspan="${res.units.length}"
+                        class="align-middle text-start fw-bold">
+                        Rata-rata Shift
+                    </td>
+                `;
+            }
+
+            html += `
+                <td class="text-start fw-bold">
+                    ${unit}
                 </td>
-            </tr>
-        `;
+            `;
 
-        // Rata-rata Shift
-        html += `
-            <tr class="table-average">
-                <td colspan="2" class="text-start fw-bold">
-                    Rata-rata Shift
-                </td>
-        `;
+            let unitTotal = 0;
 
-        res.fuelTrucks.forEach(function (fuelTruck) {
-            const truckTotal = Number(
-                res.fuelTruckGrandTotal?.[fuelTruck] || 0
-            );
+            res.fuelTrucks.forEach(function (fuelTruck) {
 
-            const truckAverage = res.hours.length > 0
-                ? truckTotal / res.hours.length
+                const value = Number(
+                    res.totalsByUnit?.[unit]?.[fuelTruck] || 0
+                );
+
+                unitTotal += value;
+
+                const average = res.hours.length > 0
+                    ? value / res.hours.length
+                    : 0;
+
+                html += `
+                    <td class="text-center fw-bold">
+                        ${displayValue(average, 2)}
+                    </td>
+                `;
+            });
+
+            const unitAverage = res.hours.length > 0
+                ? unitTotal / res.hours.length
                 : 0;
 
             html += `
                 <td class="text-center fw-bold">
-                    ${displayValue(truckAverage, 2)}
+                    ${displayValue(unitAverage, 2)}
                 </td>
             `;
+
+            html += `</tr>`;
         });
 
-        html += `
-                <td class="text-center fw-bold">
-                    ${displayValue(res.averagePerHour || 0, 2)}
-                </td>
-            </tr>
-        `;
 
         $('#tblBody').html(html);
     }

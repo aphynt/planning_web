@@ -758,14 +758,105 @@ class StatusAvailabilityController extends Controller
         }
 
         unset($statusesData, $unitsData, $duration);
+
+        // ============================================================
+        // CHART PIVOT
+        //
+        // Untuk grafik:
+        // 1 periode = 60 menit per unit.
+        //
+        // Jika tanggal yang dipilih lebih dari 1 hari, nilai per jam
+        // dinormalisasi terhadap jumlah hari agar setiap periode tetap
+        // maksimal 60 menit.
+        //
+        // Contoh:
+        // 2 hari, unit A Ready 100 menit pada 07-08
+        // => 100 / 2 = 50 menit rata-rata per periode.
+        //
+        // Data ini sengaja terpisah dari $pivot karena $pivot dipakai
+        // untuk perhitungan tabel/availability lainnya.
+        // ============================================================
+        $chartPivot = [];
+
+        foreach ($hours as $hour) {
+
+            foreach ($statuses as $status) {
+
+                foreach ($units as $unit) {
+
+                    $unitId = $unit['id'];
+
+                    $totalMinutes =
+                        $pivot[$hour][$status][$unitId] ?? 0;
+
+                    // $pivot pada titik ini sudah dalam satuan jam
+                    // (karena sebelumnya dibagi 60), sehingga dikali
+                    // 60 kembali untuk mendapatkan menit.
+                    $minutes = $totalMinutes * 60;
+
+                    $normalizedMinutes =
+                        $dayCount > 0
+                            ? $minutes / $dayCount
+                            : 0;
+
+                    // Jaga agar satu unit dalam satu periode tidak
+                    // pernah melebihi 60 menit.
+                    $chartPivot[$hour][$status][$unitId] =
+                        round(
+                            min(60, max(0, $normalizedMinutes)),
+                            2
+                        );
+                }
+            }
+        }
+
+        // ============================================================
+        // CHART ALL UNIT
+        //
+        // ALL UNIT = rata-rata antar unit.
+        // Karena setiap unit mempunyai 60 menit/periode, maka hasil
+        // stack ALL UNIT juga tetap maksimal 60 menit.
+        // ============================================================
+        $chartAverage = [];
+
+        foreach ($hours as $hour) {
+
+            foreach ($statuses as $status) {
+
+                $sum = 0;
+                $unitCount = count($units);
+
+                foreach ($units as $unit) {
+
+                    $unitId = $unit['id'];
+
+                    $sum +=
+                        $chartPivot[$hour][$status][$unitId]
+                        ?? 0;
+                }
+
+                $chartAverage[$hour][$status] =
+                    $unitCount > 0
+                        ? round($sum / $unitCount, 2)
+                        : 0;
+            }
+        }
+
         return response()->json([
-            'units'     => $units,
-            'hours'     => $hours,
-            'statuses'  => $statuses,
-            'pivot'     => $pivot,
-            'totals'    => $totals,
-            'averages'  => $averages,
-            'dayCount'  => $dayCount
+            'units'         => $units,
+            'hours'         => $hours,
+            'statuses'      => $statuses,
+            'pivot'         => $pivot,
+
+            // Khusus grafik: 1 periode selalu 60 menit/unit.
+            'chartPivot'    => $chartPivot,
+
+            // Khusus "Semua Unit": rata-rata semua unit.
+            'chartAverage'  => $chartAverage,
+
+            'totals'        => $totals,
+            'averages'      => $averages,
+            'dayCount'      => $dayCount
         ]);
     }
 }

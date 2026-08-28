@@ -222,6 +222,116 @@
 
     });
 
+    // ================================================================
+    // Reverse geocoding
+    //
+    // LOC_NAME dipakai terlebih dahulu.
+    // Jika LOC_NAME kosong, koordinat GPS dipakai untuk mengambil nama
+    // lokasi melalui OpenStreetMap Nominatim.
+    //
+    // Cache digunakan supaya koordinat yang sama tidak dipanggil
+    // berkali-kali.
+    // ================================================================
+    const reverseGeocodeCache = {};
+    const reverseGeocodePending = {};
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function reverseGeocode(lat, lon, key) {
+
+        const url =
+            'https://nominatim.openstreetmap.org/reverse' +
+            '?format=jsonv2' +
+            '&lat=' + encodeURIComponent(lat) +
+            '&lon=' + encodeURIComponent(lon) +
+            '&zoom=18' +
+            '&addressdetails=1';
+
+        fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error(
+                    'Reverse geocoding HTTP ' + response.status
+                );
+            }
+
+            return response.json();
+        })
+        .then(function(result) {
+
+            let name = '';
+
+            if (result && result.display_name) {
+                name = result.display_name;
+            }
+
+            if (!name && result && result.address) {
+
+                const address = result.address;
+
+                name =
+                    address.road ||
+                    address.village ||
+                    address.town ||
+                    address.city ||
+                    address.municipality ||
+                    address.county ||
+                    address.state ||
+                    '';
+            }
+
+            if (!name) {
+                name =
+                    Number(lat).toFixed(6) +
+                    ', ' +
+                    Number(lon).toFixed(6);
+            }
+
+            reverseGeocodeCache[key] = name;
+
+            $('[data-geocode-key="' + key + '"]').each(
+                function() {
+                    $(this).text(name);
+                }
+            );
+        })
+        .catch(function(error) {
+
+            console.warn(
+                'Reverse geocoding gagal:',
+                error
+            );
+
+            const fallback =
+                Number(lat).toFixed(6) +
+                ', ' +
+                Number(lon).toFixed(6);
+
+            reverseGeocodeCache[key] = fallback;
+
+            $('[data-geocode-key="' + key + '"]').each(
+                function() {
+                    $(this).text(fallback);
+                }
+            );
+        })
+        .finally(function() {
+            delete reverseGeocodePending[key];
+        });
+    }
+
     var table;
     $(document).ready(function() {
         var userRole = "{{ Auth::user()->role }}";
@@ -308,8 +418,65 @@
                     data: 'VHC_REFMAXSPEED'
                 },
                 {
-                    data: 'LOC_NAME',
-                    defaultContent: ''
+                    data: null,
+                    render: function(data, type, row) {
+                        const locName = row.LOC_NAME;
+
+                        if (
+                            locName !== null &&
+                            locName !== undefined &&
+                            String(locName).trim() !== ''
+                        ) {
+                            return escapeHtml(String(locName).trim());
+                        }
+
+                        const lat = row.GPS_LAT;
+                        const lon = row.GPS_LON;
+
+                        if (
+                            lat === null || lat === undefined || lat === '' ||
+                            lon === null || lon === undefined || lon === ''
+                        ) {
+                            return '-';
+                        }
+
+                        const latNum = Number(lat);
+                        const lonNum = Number(lon);
+
+                        if (
+                            !Number.isFinite(latNum) ||
+                            !Number.isFinite(lonNum)
+                        ) {
+                            return '-';
+                        }
+
+                        const key =
+                            latNum.toFixed(6) + ',' + lonNum.toFixed(6);
+
+                        if (reverseGeocodeCache[key]) {
+                            return escapeHtml(reverseGeocodeCache[key]);
+                        }
+
+                        if (!reverseGeocodePending[key]) {
+                            reverseGeocodePending[key] = true;
+
+                            reverseGeocode(
+                                latNum,
+                                lonNum,
+                                key
+                            );
+                        }
+
+                        return `
+                            <span
+                                class="text-muted"
+                                data-geocode-key="${key}"
+                            >
+                                ${latNum.toFixed(6)}, ${lonNum.toFixed(6)}
+                            </span>
+                        `;
+                    },
+                    defaultContent: '-'
                 },
                 {
                     data: 'GPS_LON',

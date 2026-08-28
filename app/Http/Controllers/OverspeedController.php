@@ -8,32 +8,37 @@ use Illuminate\Support\Facades\DB;
 
 class OverspeedController extends Controller
 {
-    //
-    public function index(){
+
+    public function index()
+    {
         return view('overspeed.index');
     }
+
 
     public function api(Request $request)
     {
         $offset = $request->input('start', 0);
         $length = $request->input('length', 10);
-        $draw = $request->input('draw');
+        $draw   = $request->input('draw');
 
         $query = DB::connection('focus_reporting')
             ->table('dbo.HIS_OVERSPEED as A')
             ->select([
                 DB::raw('ROW_NUMBER() OVER (ORDER BY A.OPR_REPORTTIME DESC) AS ID'),
+
                 DB::raw('
                     LEAD(A.OPR_REPORTTIME) OVER (
                         PARTITION BY A.VHC_ID
                         ORDER BY A.OPR_REPORTTIME
                     ) AS NEXT_REPORTTIME
                 '),
+
                 'A.OPR_REPORTTIME',
                 'A.VHC_ID',
                 'A.LOC_NAME',
                 'A.VHC_SPEED',
-                'A.VHC_REFMAXSPEED',
+                DB::raw("\n                    CASE\n                        WHEN A.LOC_NAME IS NULL\n                            OR LTRIM(RTRIM(A.LOC_NAME)) = ''\n                        THEN 60\n                        ELSE A.VHC_REFMAXSPEED\n                    END AS VHC_REFMAXSPEED\n                "),
+
                 'A.OVERSPEEDSTATUS',
                 'A.UPDATED_AT',
                 'A.OPR_NRP',
@@ -41,55 +46,58 @@ class OverspeedController extends Controller
                 'A.GPS_LON',
                 'A.GPS_LAT',
                 'A.GPS_ALT',
-                DB::raw("
-                    CASE
-                        WHEN CAST(A.OPR_REPORTTIME AS TIME) >= '07:00:00'
-                        AND CAST(A.OPR_REPORTTIME AS TIME) < '19:00:00'
-                        THEN 6
-                        ELSE 7
-                    END AS OPR_SHIFTNO
-                ")
+
+                DB::raw("\n                    CASE\n                        WHEN CAST(A.OPR_REPORTTIME AS TIME) >= '07:00:00'\n                        AND CAST(A.OPR_REPORTTIME AS TIME) < '19:00:00'\n                        THEN 6\n                        ELSE 7\n                    END AS OPR_SHIFTNO\n                ")
             ])
             ->where('A.VHC_SPEED', '<=', 70)
+            ->whereNotNull('A.LOC_NAME')
+            ->where('A.LOC_NAME', '<>', '')
             ->where('A.VHC_ID', 'like', 'FT%');
 
         $tanggalInput = $request->input('tanggalStatus');
-        $shift = $request->input('shift');
+        $shift        = $request->input('shift');
 
         if (empty($tanggalInput)) {
             $startDate = Carbon::today()->format('Y-m-d');
-            $endDate = $startDate;
+            $endDate   = $startDate;
         } else {
             if (str_contains($tanggalInput, 'to')) {
-                [$startDate, $endDate] = array_map('trim', explode('to', $tanggalInput));
+                [$startDate, $endDate] = array_map(
+                    'trim',
+                    explode('to', $tanggalInput)
+                );
             } else {
                 $startDate = trim($tanggalInput);
-                $endDate = $startDate;
+                $endDate   = $startDate;
             }
         }
 
         $startDay = Carbon::parse($startDate)->startOfDay();
-        $endDay = Carbon::parse($endDate)->startOfDay();
+        $endDay   = Carbon::parse($endDate)->startOfDay();
 
         if (!empty($shift) && $shift != 'Semua') {
             if ($shift == '6') {
                 $filterStart = Carbon::parse($startDate . ' 07:00:00');
-                $filterEnd = Carbon::parse($endDate . ' 19:00:00');
+                $filterEnd   = Carbon::parse($endDate . ' 19:00:00');
             } elseif ($shift == '7') {
                 $filterStart = Carbon::parse($startDate . ' 19:00:00');
-                $filterEnd = Carbon::parse($endDate)->addDay()->setTime(7, 0, 0);
+                $filterEnd   = Carbon::parse($endDate)
+                    ->addDay()
+                    ->setTime(7, 0, 0);
             } else {
                 $filterStart = $startDay;
-                $filterEnd = $endDay->copy()->addDay();
+                $filterEnd   = $endDay->copy()->addDay();
             }
 
-            $query->where('A.OPR_REPORTTIME', '>=', $filterStart)
+            $query
+                ->where('A.OPR_REPORTTIME', '>=', $filterStart)
                 ->where('A.OPR_REPORTTIME', '<', $filterEnd);
         } else {
             $filterStart = $startDay;
-            $filterEnd = $endDay->copy()->addDay();
+            $filterEnd   = $endDay->copy()->addDay();
 
-            $query->where('A.OPR_REPORTTIME', '>=', $filterStart)
+            $query
+                ->where('A.OPR_REPORTTIME', '>=', $filterStart)
                 ->where('A.OPR_REPORTTIME', '<', $filterEnd);
         }
 
@@ -135,7 +143,6 @@ class OverspeedController extends Controller
         }
 
         $frequency = [];
-
         $units = $allData
             ->pluck('VHC_ID')
             ->unique()
@@ -144,7 +151,7 @@ class OverspeedController extends Controller
 
         foreach ($units as $unit) {
             $row = [
-                'unit' => $unit,
+                'unit'  => $unit,
                 'total' => 0
             ];
 
@@ -152,7 +159,9 @@ class OverspeedController extends Controller
                 $jumlah = $allData
                     ->where('VHC_ID', $unit)
                     ->filter(function ($item) use ($hour) {
-                        return (int) Carbon::parse($item->OPR_REPORTTIME)->format('H') === $hour;
+                        return (int) Carbon::parse(
+                            $item->OPR_REPORTTIME
+                        )->format('H') === $hour;
                     })
                     ->count();
 
@@ -164,21 +173,23 @@ class OverspeedController extends Controller
         }
 
         $frequencyTotal = [
-            'unit' => 'Total',
+            'unit'  => 'Total',
             'total' => 0
         ];
 
         foreach ($hours as $hour) {
-            $total = collect($frequency)->sum('hour_' . $hour);
+            $total = collect($frequency)->sum(
+                'hour_' . $hour
+            );
+
             $frequencyTotal['hour_' . $hour] = $total;
             $frequencyTotal['total'] += $total;
         }
-
         $duration = [];
 
         foreach ($units as $unit) {
             $row = [
-                'unit' => $unit,
+                'unit'  => $unit,
                 'total' => 0
             ];
 
@@ -186,22 +197,26 @@ class OverspeedController extends Controller
                 $minutes = $allData
                     ->where('VHC_ID', $unit)
                     ->filter(function ($item) use ($hour) {
-                        return (int) Carbon::parse($item->OPR_REPORTTIME)->format('H') === $hour;
+                        return (int) Carbon::parse(
+                            $item->OPR_REPORTTIME
+                        )->format('H') === $hour;
                     })
                     ->sum(function ($item) {
                         if (empty($item->NEXT_REPORTTIME)) {
                             return 0;
                         }
 
-                        $start = Carbon::parse($item->OPR_REPORTTIME);
-                        $end = Carbon::parse($item->NEXT_REPORTTIME);
-
+                        $start = Carbon::parse(
+                            $item->OPR_REPORTTIME
+                        );
+                        $end = Carbon::parse(
+                            $item->NEXT_REPORTTIME
+                        );
                         if ($end->lte($start)) {
                             return 0;
                         }
 
                         $seconds = $start->diffInSeconds($end);
-
                         if ($seconds > 300) {
                             $seconds = 300;
                         }
@@ -219,33 +234,41 @@ class OverspeedController extends Controller
         }
 
         $durationTotal = [
-            'unit' => 'Total',
+            'unit'  => 'Total',
             'total' => 0
         ];
 
         foreach ($hours as $hour) {
-            $total = collect($duration)->sum('hour_' . $hour);
+            $total = collect($duration)->sum(
+                'hour_' . $hour
+            );
+
             $total = round($total, 2);
 
             $durationTotal['hour_' . $hour] = $total;
             $durationTotal['total'] += $total;
         }
 
-        $durationTotal['total'] = round($durationTotal['total'], 2);
+        $durationTotal['total'] = round(
+            $durationTotal['total'],
+            2
+        );
 
         return response()->json([
-            'draw' => $draw,
-            'recordsTotal' => $recordsFiltered,
+            'draw'            => $draw,
+            'recordsTotal'    => $recordsFiltered,
             'recordsFiltered' => $recordsFiltered,
-            'data' => $data,
+            'data'            => $data,
+
             'frequency' => [
                 'hours' => $hours,
-                'rows' => $frequency,
+                'rows'  => $frequency,
                 'total' => $frequencyTotal
             ],
+
             'duration' => [
                 'hours' => $hours,
-                'rows' => $duration,
+                'rows'  => $duration,
                 'total' => $durationTotal
             ]
         ]);
