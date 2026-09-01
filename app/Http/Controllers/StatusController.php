@@ -283,11 +283,37 @@ class StatusController extends Controller
             }
         }
 
+
+        $filteredActivities = [];
+
+        foreach ($activitiesByStatus as $status => $activities) {
+            foreach ($activities as $activity) {
+                $totalDuration = 0;
+
+                if (isset($totals[$status][$activity])) {
+                    $totalDuration = array_sum(
+                        $totals[$status][$activity]
+                    );
+                }
+
+                if ($totalDuration > 0) {
+                    $filteredActivities[$status][] = $activity;
+                }
+            }
+        }
+
+        foreach ($statuses as $status) {
+            if (!isset($filteredActivities[$status])) {
+                $filteredActivities[$status] = [];
+            }
+        }
+
         return response()->json([
             'units' => $units,
             'hours' => $hours,
             'statuses' => $statuses,
-            'activities' => $activitiesByStatus,
+            // 'activities' => $activitiesByStatus,
+            'activities' => $filteredActivities,
             'pivot' => $pivot,
             'totals' => $totals,
         ]);

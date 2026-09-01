@@ -32,8 +32,8 @@ class DistribusiFrekuensiFuelTruckController extends Controller
                 $endDate   = $startDate;
             }
         }
-        $query = DB::connection('focus')
-            ->table('VSA_STATUSACTIVITYEX as A')
+        $query = DB::connection('focus_reporting')
+            ->table('VW_VSA_STATUSACTIVITYEX as A')
             ->select([
                 'A.VHC_ID',
                 'A.OPR_REPORTTIME',
@@ -318,8 +318,8 @@ class DistribusiFrekuensiFuelTruckController extends Controller
             }
         }
 
-        $query = DB::connection('focus')
-            ->table('VSA_STATUSACTIVITYEX as A')
+        $query = DB::connection('focus_reporting')
+            ->table('VW_VSA_STATUSACTIVITYEX as A')
             ->select([
                 'A.VHC_ID',
                 'A.OPR_REPORTTIME',

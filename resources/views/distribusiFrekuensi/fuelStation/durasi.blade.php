@@ -523,7 +523,7 @@
         // =========================================================
         // TABEL KIRI
         // Format sesuai referensi:
-        // Jam | Status | FS SM-B1 | FS SM-B2 | Total
+        // Jam | Status | SM-B1 | SM-B2 | Total
         // =========================================================
         function renderDurationTable(res) {
             const hours = res.hours || [];
@@ -540,8 +540,8 @@
                     </th>
                 </tr>
                 <tr>
-                    <th class="text-center">FS SM-B1</th>
-                    <th class="text-center">FS SM-B2</th>
+                    <th class="text-center">SM-B1</th>
+                    <th class="text-center">SM-B2</th>
                     <th class="text-center">Total</th>
                 </tr>
             `;
@@ -826,7 +826,7 @@
 
         // =========================================================
         // TABEL KANAN
-        // All, FS SM-B1, FS SM-B2
+        // All, SM-B1, SM-B2
         // =========================================================
         function renderAverageDurationTable(res) {
             const hours = res.hours || [];
@@ -838,7 +838,7 @@
             let html = '';
 
             stations.forEach(function (station) {
-                const title = station === 'All' ? 'All' : `FS ${station}`;
+                const title = station === 'All' ? 'All' : `${station}`;
                 const tableId = station === 'All'
                     ? 'tblAverageAll'
                     : `tblAverage${station.replace('-', '')}`;
@@ -1063,8 +1063,8 @@
         const tables = [
             { id: 'tblDuration', name: 'Durasi' },
             { id: 'tblAverageAll', name: 'All' },
-            { id: 'tblAverageSMB1', name: 'FS SM-B1' },
-            { id: 'tblAverageSMB2', name: 'FS SM-B2' }
+            { id: 'tblAverageSMB1', name: 'SM-B1' },
+            { id: 'tblAverageSMB2', name: 'SM-B2' }
         ];
 
         tables.forEach(function (item) {
