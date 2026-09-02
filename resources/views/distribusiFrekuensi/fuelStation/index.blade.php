@@ -81,7 +81,12 @@
 
     .grand-summary-row td {
         font-weight: 700;
-        background-color: #ffe9cc !important;
+        background-color: #cfe2f3 !important;
+    }
+
+    .grand-average-row td {
+        font-weight: 700;
+        background-color: #d9ead3 !important;
     }
 </style>
 
@@ -472,7 +477,7 @@
 
         res.units.forEach(function (unit, unitIndex) {
 
-            html += `<tr class="grand-summary-row">`;
+            html += `<tr class="grand-average-row">`;
 
             if (unitIndex === 0) {
                 html += `

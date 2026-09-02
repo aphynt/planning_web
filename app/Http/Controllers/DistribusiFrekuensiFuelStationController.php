@@ -61,14 +61,14 @@ class DistribusiFrekuensiFuelStationController extends Controller
             ])
             ->where(function ($q) {
                 $q->where(function ($q2) {
-                    $q2->whereIn('A.VHC_TYPEID', [2, 3])
+                    $q2->whereIn('A.VHC_TYPEID', [2, 3, 4])
                         ->where('A.VSA_STATUSID', 'S30');
-                })
-                ->orWhere(function ($q2) {
-                    $q2->where('A.VHC_TYPEID', 5)
-                        ->whereNotNull('A.VSA_NOTES')
-                        ->where('A.VSA_NOTES', '<>', '');
                 });
+                // ->orWhere(function ($q2) {
+                //     $q2->where('A.VHC_TYPEID', 5)
+                //         ->whereNotNull('A.VSA_NOTES')
+                //         ->where('A.VSA_NOTES', '<>', '');
+                // });
             })
             ->where('A.OPR_REPORTTIME', '>', '1970-01-01')
             ->whereIn('B.LOC_REGIONNAME', ['B1', 'B2']);
@@ -156,41 +156,44 @@ class DistribusiFrekuensiFuelStationController extends Controller
                 $unitName = 'Hauler';
             } elseif ((int) $row->VHC_TYPEID === 3) {
                 $unitName = 'Grader';
-            } elseif ((int) $row->VHC_TYPEID === 5) {
-                if (empty($row->VSA_NOTES)) {
-                    continue;
-                }
-
-                $notes = str_replace(
-                    ["\r\n", "\r"],
-                    "\n",
-                    $row->VSA_NOTES
-                );
-
-                foreach (explode("\n", $notes) as $noteLine) {
-                    $noteLine = trim($noteLine);
-
-                    if ($noteLine === '') {
-                        continue;
-                    }
-
-                    $parts = array_map(
-                        'trim',
-                        explode('|', $noteLine)
-                    );
-
-                    if (count($parts) < 3) {
-                        continue;
-                    }
-
-                    $tempUnit = $parts[1];
-
-                    if (in_array($tempUnit, $units, true)) {
-                        $unitName = $tempUnit;
-                        break;
-                    }
-                }
+            } elseif ((int) $row->VHC_TYPEID === 4) {
+                $unitName = 'Dozer';
             }
+            // elseif ((int) $row->VHC_TYPEID === 5) {
+            //     if (empty($row->VSA_NOTES)) {
+            //         continue;
+            //     }
+
+            //     $notes = str_replace(
+            //         ["\r\n", "\r"],
+            //         "\n",
+            //         $row->VSA_NOTES
+            //     );
+
+            //     foreach (explode("\n", $notes) as $noteLine) {
+            //         $noteLine = trim($noteLine);
+
+            //         if ($noteLine === '') {
+            //             continue;
+            //         }
+
+            //         $parts = array_map(
+            //             'trim',
+            //             explode('|', $noteLine)
+            //         );
+
+            //         if (count($parts) < 3) {
+            //             continue;
+            //         }
+
+            //         $tempUnit = $parts[1];
+
+            //         if (in_array($tempUnit, $units, true)) {
+            //             $unitName = $tempUnit;
+            //             break;
+            //         }
+            //     }
+            // }
 
             if (
                 $unitName === null ||
@@ -354,14 +357,14 @@ class DistribusiFrekuensiFuelStationController extends Controller
     ])
     ->where(function ($q) {
         $q->where(function ($q2) {
-            $q2->whereIn('A.VHC_TYPEID', [2, 3])
+            $q2->whereIn('A.VHC_TYPEID', [2, 3, 4])
                 ->where('A.VSA_STATUSID', 'S30');
-        })
-        ->orWhere(function ($q2) {
-            $q2->where('A.VHC_TYPEID', 5)
-                ->whereNotNull('A.VSA_NOTES')
-                ->where('A.VSA_NOTES', '<>', '');
         });
+        // ->orWhere(function ($q2) {
+        //     $q2->where('A.VHC_TYPEID', 5)
+        //         ->whereNotNull('A.VSA_NOTES')
+        //         ->where('A.VSA_NOTES', '<>', '');
+        // });
     })
     ->where('A.OPR_REPORTTIME', '>', '1970-01-01')
     ->where('A.OPR_ENDTIME', '>', '1970-01-01')
@@ -455,39 +458,42 @@ class DistribusiFrekuensiFuelStationController extends Controller
                 $unitName = 'Hauler';
             } elseif ((int) $row->VHC_TYPEID === 3) {
                 $unitName = 'Grader';
-            } elseif ((int) $row->VHC_TYPEID === 5) {
-                if (empty($row->VSA_NOTES)) {
-                    continue;
-                }
-
-                $notes = str_replace(
-                    ["\r\n", "\r"],
-                    "\n",
-                    $row->VSA_NOTES
-                );
-
-                foreach (explode("\n", $notes) as $noteLine) {
-                    $noteLine = trim($noteLine);
-
-                    if ($noteLine === '') {
-                        continue;
-                    }
-
-                    $parts = array_map(
-                        'trim',
-                        explode('|', $noteLine)
-                    );
-
-                    if (count($parts) < 3) {
-                        continue;
-                    }
-
-                    if (in_array($parts[1], $units, true)) {
-                        $unitName = $parts[1];
-                        break;
-                    }
-                }
+            } elseif ((int) $row->VHC_TYPEID === 4) {
+                $unitName = 'Dozer';
             }
+            //  elseif ((int) $row->VHC_TYPEID === 5) {
+            //     if (empty($row->VSA_NOTES)) {
+            //         continue;
+            //     }
+
+            //     $notes = str_replace(
+            //         ["\r\n", "\r"],
+            //         "\n",
+            //         $row->VSA_NOTES
+            //     );
+
+            //     foreach (explode("\n", $notes) as $noteLine) {
+            //         $noteLine = trim($noteLine);
+
+            //         if ($noteLine === '') {
+            //             continue;
+            //         }
+
+            //         $parts = array_map(
+            //             'trim',
+            //             explode('|', $noteLine)
+            //         );
+
+            //         if (count($parts) < 3) {
+            //             continue;
+            //         }
+
+            //         if (in_array($parts[1], $units, true)) {
+            //             $unitName = $parts[1];
+            //             break;
+            //         }
+            //     }
+            // }
 
             if ($unitName === null) {
                 continue;

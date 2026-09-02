@@ -54,9 +54,14 @@
         font-weight: bold;
     }
 
-    .duration-total-row td,
+    .duration-total-row td {
+        background: #cfe2f3 !important;
+        color: #000 !important;
+        font-weight: bold !important;
+    }
+
     .average-total-row td {
-        background: #fff3cd !important;
+        background: #d9ead3 !important;
         color: #000 !important;
         font-weight: bold !important;
     }
