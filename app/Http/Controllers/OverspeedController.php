@@ -50,12 +50,31 @@ class OverspeedController extends Controller
                 $filterStart = Carbon::parse($startDate . ' 19:00:00');
                 $filterEnd   = Carbon::parse($endDate)->addDay()->setTime(7, 0, 0);
             } else {
-                $filterStart = $startDay;
-                $filterEnd   = $endDay->copy()->addDay();
+                $filterStart = Carbon::parse($startDate . ' 07:00:00');
+                $filterEnd   = Carbon::parse($endDate)->addDay()->setTime(7, 0, 0);
             }
         } else {
-            $filterStart = $startDay;
-            $filterEnd   = $endDay->copy()->addDay();
+            $filterStart = Carbon::parse($startDate . ' 07:00:00');
+            $filterEnd   = Carbon::parse($endDate)->addDay()->setTime(7, 0, 0);
+        }
+
+        $shiftCondition = '';
+
+        if ($shift == '6') {
+
+            $shiftCondition = "
+                AND CAST(GPS_TIMESTAMP AS TIME) >= '07:00:00'
+                AND CAST(GPS_TIMESTAMP AS TIME) < '19:00:00'
+            ";
+
+        } elseif ($shift == '7') {
+
+            $shiftCondition = "
+                AND (
+                    CAST(GPS_TIMESTAMP AS TIME) >= '19:00:00'
+                    OR CAST(GPS_TIMESTAMP AS TIME) < '07:00:00'
+                )
+            ";
         }
 
         $bindings = [
@@ -99,6 +118,7 @@ class OverspeedController extends Controller
                 AND LTRIM(RTRIM(LOC_NAME)) <> ''
                 AND GPS_TIMESTAMP >= :filterStart
                 AND GPS_TIMESTAMP < :filterEnd
+                {$shiftCondition}
                 {$searchCondition}
             ),
             GroupedEvents AS (
@@ -171,8 +191,8 @@ class OverspeedController extends Controller
                 CASE
                     WHEN CAST(START_TIME AS TIME) >= '07:00:00'
                     AND CAST(START_TIME AS TIME) < '19:00:00'
-                    THEN 6
-                    ELSE 7
+                    THEN 'Siang'
+                    ELSE 'Malam'
                 END AS OPR_SHIFTNO
             FROM EventSummary
             WHERE DURASI_DETIK >= 3

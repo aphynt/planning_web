@@ -9,13 +9,10 @@
             display: none !important;
         }
     }
-
     .page-title-box label {
         font-weight: 500;
         margin-bottom: 5px;
     }
-
-
     @media (max-width: 767.98px) {
         .dt-buttons {
             display: none !important;
@@ -163,6 +160,16 @@
         text-align: center;
     }
 
+    .total-row td {
+        background: #fff2cc !important;
+        font-weight: 600;
+    }
+
+    .average-row td {
+        background: #e8f5e9 !important;
+        font-weight: 600;
+    }
+
     @media (max-width: 767.98px) {
 
         #tblAvailability {
@@ -209,15 +216,11 @@
                                 </select>
 
                             </div>
-                            <div class="col-6 col-md-2 mb-2">
-                                <label for="choices-single-default">Unit ID</label>
-                                <select class="form-control" data-choices name="vhc_id" id="choices-single-default" >
-                                    <option value="Semua">Semua</option>
-                                    @foreach ($vehicle as $vhc)
-                                        <option value="{{ $vhc->VHC_ID }}" >
-                                            {{ $vhc->VHC_ID }}
-                                        </option>
-                                    @endforeach
+                            <div class="col-6 col-md-1 mb-2">
+                                <label for="aggregation">Tampilan</label>
+                                <select class="form-select" name="aggregation" id="aggregation">
+                                    <option value="total" selected>Total</option>
+                                    <option value="average">Rata-rata</option>
                                 </select>
                             </div>
                             <div class="col-6 col-md-2 mb-2 d-flex align-items-end gap-2">
@@ -295,428 +298,256 @@
 
 @include('layout.footer')
 <script>
-    document.getElementById('tanggalStatus').flatpickr({
-        mode: "range"
-    });
+    document.getElementById('tanggalStatus').flatpickr({ mode: 'range' });
 
     document.addEventListener('DOMContentLoaded', function () {
-        const urlParams = new URLSearchParams(window.location.search);
-        const rangeDate = urlParams.get('rangeDate');
-        const rangeInput = document.getElementById('tanggalStatus');
+        const params = new URLSearchParams(window.location.search);
+        const rangeDate = params.get('rangeDate');
+        const input = document.getElementById('tanggalStatus');
+
         if (rangeDate) {
-            rangeInput.value = rangeDate;
+            input.value = rangeDate;
         } else {
             const today = new Date();
             const yyyy = today.getFullYear();
-            const mm = String(
-                    today.getMonth() + 1
-                ).padStart(2, '0');
-            const dd = String(
-                    today.getDate()
-                ).padStart(2, '0');
-            rangeInput.placeholder = `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            input.placeholder = `${yyyy}-${mm}-${dd} to ${yyyy}-${mm}-${dd}`;
         }
     });
 
+    let statusResponse = null;
+
     function getUnitStatusClass(status) {
-        switch (
-            String(status || '').toLowerCase()
-        ) {
-            case 'ready':
-                return 'unit-ready';
-
-            case 'standby':
-                return 'unit-standby';
-
-            case 'delay':
-                return 'unit-delay';
-
-            case 'breakdown':
-                return 'unit-breakdown';
-
-            default:
-                return 'unit-unknown';
+        switch (String(status || '').toLowerCase()) {
+            case 'ready': return 'unit-ready';
+            case 'standby': return 'unit-standby';
+            case 'delay': return 'unit-delay';
+            case 'breakdown': return 'unit-breakdown';
+            default: return 'unit-unknown';
         }
     }
 
     function formatNumber(value) {
-        return Number(
-            value || 0
-        ).toFixed(1);
-
+        return Number(value || 0).toFixed(1);
     }
 
+    function getActivities(res, status) {
+        return res.activities && res.activities[status] ? res.activities[status] : [];
+    }
 
     function buildTable(res) {
-        let header = '';
-        header += `
+        const aggregation = $('#aggregation').val();
+        const title = aggregation === 'average'
+            ? 'Rata-rata Durasi per Kejadian (Menit)'
+            : 'Total Durasi (Menit)';
+
+        let header = `
             <tr>
-
-                <th
-                    rowspan="2"
-                    class="align-middle text-center"
-                    style="width:80px;"
-                >
-                    Jam
-                </th>
-
-
-                <th
-                    rowspan="2"
-                    class="align-middle text-center"
-                    style="width:110px;"
-                >
-                    Status
-                </th>
-
-
-                <th
-                    rowspan="2"
-                    class="align-middle text-center"
-                    style="width:190px;"
-                >
-                    Activity
-                </th>
-
-
-                <th
-                    colspan="${res.units.length}"
-                    class="text-center"
-                >
-                    Durasi (Menit)
-                </th>
-
+                <th rowspan="2" class="align-middle text-center" style="width:80px;">Jam</th>
+                <th rowspan="2" class="align-middle text-center" style="width:110px;">Status</th>
+                <th rowspan="2" class="align-middle text-center" style="width:190px;">Activity</th>
+                <th colspan="${res.units.length}" class="text-center">${title}</th>
             </tr>
+            <tr>`;
 
-
-            <tr>
-
-        `;
-
-        res.units.forEach(function (unit) {
-            const statusClass =
-                getUnitStatusClass(
-                    unit.status
-                );
+        res.units.forEach(unit => {
             header += `
-
-                <th
-                    class="text-center ${statusClass}"
+                <th class="text-center ${getUnitStatusClass(unit.status)}"
                     style="min-width:85px;"
-                    title="Status: ${unit.status}"
-                >
+                    title="Status: ${unit.status}">
                     ${unit.id}
-                </th>
-            `;
+                </th>`;
         });
 
-        header += `
-            </tr>
-        `;
-
+        header += '</tr>';
         $('#tblHeader').html(header);
         buildBody(res);
     }
 
     function buildBody(res) {
         let html = '';
-        res.hours.forEach(function (hour) {
-            const hourData = res.pivot[hour] || {};
+        const aggregation = $('#aggregation').val();
+        const source = aggregation === 'average' ? res.averages : res.pivot;
+
+        res.hours.forEach(hour => {
+            const hourData = source && source[hour] ? source[hour] : {};
             let totalRows = 0;
-            res.statuses.forEach(function (status) {
 
-                const activities =
-                    res.activities &&
-                    res.activities[status]
-                        ? res.activities[status]
-                        : [];
-
-                totalRows += activities.length;
+            res.statuses.forEach(status => {
+                totalRows += getActivities(res, status).length;
             });
 
-            if (totalRows === 0) {
-                html += `
-                    <tr>
-
-                        <td class="hour-cell">
-                            ${hour}
-                        </td>
-
-                        <td
-                            colspan="2"
-                            class="text-center text-muted"
-                        >
-                            -
-                        </td>
-                `;
-
-                res.units.forEach(function () {
-                    html += `
-                        <td class="duration-cell">
-                            -
-                        </td>
-                    `;
-                });
-
-                html += `
-                    </tr>
-                `;
-
+            if (!totalRows) {
+                html += `<tr>
+                    <td class="hour-cell">${hour}</td>
+                    <td colspan="2" class="text-center text-muted">-</td>
+                    ${res.units.map(() => '<td class="duration-cell">-</td>').join('')}
+                </tr>`;
                 return;
             }
 
             let hourRowIndex = 0;
-            res.statuses.forEach(function (status) {
-                const activities =
-                    res.activities &&
-                    res.activities[status]
-                        ? res.activities[status]
-                        : [];
 
-                if (activities.length === 0) {
-                    return;
-                }
+            res.statuses.forEach(status => {
+                const activities = getActivities(res, status);
+                if (!activities.length) return;
 
-                activities.forEach(function (
-                    activity,
-                    activityIndex
-                ) {
+                activities.forEach((activity, activityIndex) => {
                     html += '<tr>';
+
                     if (hourRowIndex === 0) {
-
-                        html += `
-                            <td
-                                rowspan="${totalRows}"
-                                class="hour-cell"
-                            >
-                                ${hour}
-                            </td>
-                        `;
-
+                        html += `<td rowspan="${totalRows}" class="hour-cell">${hour}</td>`;
                     }
 
                     if (activityIndex === 0) {
-                        html += `
-                            <td
-                                rowspan="${activities.length}"
-                                class="status-cell"
-                            >
-                                ${status}
-                            </td>
-                        `;
-
+                        html += `<td rowspan="${activities.length}" class="status-cell">${status}</td>`;
                     }
-                    html += `
-                        <td class="activity-cell">
-                            ${activity}
-                        </td>
-                    `;
 
-                    res.units.forEach(function (unit) {
-                        let value = 0;
+                    html += `<td class="activity-cell">${activity}</td>`;
 
-                        if (
-                            hourData[status] &&
-                            hourData[status][activity] &&
-                            hourData[status][activity][unit.id] !== undefined
-                        ) {
+                    res.units.forEach(unit => {
+                        const value = hourData[status] &&
+                                    hourData[status][activity] &&
+                                    hourData[status][activity][unit.id] !== undefined
+                            ? Number(hourData[status][activity][unit.id])
+                            : 0;
 
-                            value = Number(
-                                hourData[status][activity][unit.id]
-                            );
-
-                        }
-
-                        html += `
-                            <td class="duration-cell">
-                                ${
-                                    value > 0
-                                        ? formatNumber(value)
-                                        : '-'
-                                }
-                            </td>
-                        `;
-
+                        html += `<td class="duration-cell">${value > 0 ? formatNumber(value) : '-'}</td>`;
                     });
+
                     html += '</tr>';
                     hourRowIndex++;
                 });
-
             });
-
         });
 
-        buildTotal(
-            html,
-            res
-        );
+        buildTotal(html, res);
     }
 
-    function buildTotal(
-        html,
-        res
-    ) {
-        res.statuses.forEach(function (status) {
-            const statusTotals =
-                res.totals[status] || {};
-            const activities =
-                Object.keys(
-                    statusTotals
-                );
-            if (
-                activities.length === 0
-            ) {
-                return;
-            }
-            html += `
-                <tr class="total-row">
-                    <td
-                        colspan="3"
-                        class="text-start fw-bold ps-3"
-                    >
-                        Total ${status}
-                    </td>
-            `;
-            res.units.forEach(function (unit) {
-                let total = 0;
-                activities.forEach(function (activity) {
-                    if (
-                        statusTotals[activity] &&
-                        statusTotals[activity][unit.id]
-                            !== undefined
-                    ) {
-                        total += Number(
-                            statusTotals[
-                                activity
-                            ][
-                                unit.id
-                            ]
-                        );
-                    }
-                });
+    function buildTotal(html, res) {
+        const buildSummary = (label, sourceTotals, isAverage = false) => {
+            const rowClass = isAverage ? 'average-row' : 'total-row';
+
+            res.statuses.forEach(status => {
+                const statusTotals = sourceTotals?.[status] || {};
+                const activities = Object.keys(statusTotals);
+
                 html += `
-                    <td class="duration-cell">
-                        ${
-                            total > 0
-                                ? formatNumber(total)
-                                : '-'
-                        }
-                    </td>
+                    <tr class="${rowClass}">
+                        <td colspan="3" class="text-start fw-bold ps-3">${label} ${status}</td>
                 `;
-            });
-            html += '</tr>';
-        });
-        $('#tblBody').html(html);
 
+                res.units.forEach(unit => {
+                    let value = 0;
+
+                    if (isAverage) {
+                        value = Number(res.averageStatusTotals?.[status]?.[unit.id] || 0);
+                    } else {
+                        activities.forEach(activity => {
+                            value += Number(statusTotals?.[activity]?.[unit.id] || 0);
+                        });
+                    }
+
+                    html += `<td class="duration-cell">${value > 0 ? formatNumber(value) : '-'}</td>`;
+                });
+
+                html += '</tr>';
+            });
+        };
+
+        buildSummary('Total', res.totals);
+        buildSummary('Rata-rata', res.averageTotals, true);
+
+        $('#tblBody').html(html);
     }
+
     function loadStatus() {
-        $('#loadingOverlay')
-            .css('display', 'flex');
+        $('#loadingOverlay').css('display', 'flex');
+
         $.ajax({
             url: "{{ route('status.api') }}",
-            type: "GET",
+            type: 'GET',
             data: {
-                tanggalStatus:
-                    $('#tanggalStatus').val(),
-                shift:
-                    $('#shift').val(),
-                vhc_id:
-                    $('#choices-single-default').val()
+                tanggalStatus: $('#tanggalStatus').val(),
+                shift: $('#shift').val(),
+                vhc_id: $('#choices-single-default').val()
             },
             success: function (res) {
+                statusResponse = res;
                 buildTable(res);
             },
-
-
             error: function (xhr) {
-                console.error(
-                    'Status API Error:',
-                    xhr.responseText
-                );
+                console.error('Status API Error:', xhr.responseText);
                 $('#tblHeader').html('');
                 $('#tblBody').html(`
                     <tr>
-                        <td
-                            colspan="100"
-                            class="text-center text-danger py-4"
-                        >
+                        <td colspan="100" class="text-center text-danger py-4">
                             Gagal mengambil data.
                         </td>
                     </tr>
                 `);
             },
             complete: function () {
-                $('#loadingOverlay')
-                    .hide();
+                $('#loadingOverlay').hide();
             }
         });
-
     }
+
     $(document).ready(function () {
         loadStatus();
 
-        $('#cariStatus').click(function () {
+        $('#cariStatus').on('click', function () {
             loadStatus();
+        });
+
+        $('#shift').on('change', function () {
+            loadStatus();
+        });
+
+        $('#aggregation').on('change', function () {
+            if (statusResponse) buildTable(statusResponse);
         });
     });
 
     $('#exportAllExcel').on('click', function () {
         const workbook = XLSX.utils.book_new();
-        const detailTable = document.getElementById('tblAvailability');
+        const table = document.getElementById('tblAvailability');
 
-        if (detailTable) {
-            const detailSheet = XLSX.utils.table_to_sheet(
-                detailTable,
-                {
-                    raw: true
-                }
-            );
-            const range = XLSX.utils.decode_range(detailSheet['!ref']);
-            const columnWidths = [];
+        if (table) {
+            const sheet = XLSX.utils.table_to_sheet(table, { raw: true });
 
-            for (let C = range.s.c; C <= range.e.c; C++) {
-                let maxWidth = 0;
+            if (sheet['!ref']) {
+                const range = XLSX.utils.decode_range(sheet['!ref']);
+                const widths = [];
 
-                for (let R = range.s.r; R <= range.e.r; R++) {
-                    const cellAddress = XLSX.utils.encode_cell({
-                        r: R,
-                        c: C
-                    });
+                for (let c = range.s.c; c <= range.e.c; c++) {
+                    let maxWidth = 0;
 
-                    const cell = detailSheet[cellAddress];
+                    for (let r = range.s.r; r <= range.e.r; r++) {
+                        const cell = sheet[XLSX.utils.encode_cell({ r, c })];
 
-                    if (cell && cell.v !== undefined && cell.v !== null) {
-                        const value = String(cell.v);
-
-                        // Hitung panjang isi cell
-                        maxWidth = Math.max(maxWidth, value.length);
+                        if (cell && cell.v !== undefined && cell.v !== null) {
+                            maxWidth = Math.max(maxWidth, String(cell.v).length);
+                        }
                     }
+
+                    widths.push({ wch: Math.min(maxWidth + 2, 50) });
                 }
 
-                // Tambahkan sedikit ruang
-                columnWidths.push({
-                    wch: Math.min(maxWidth + 2, 50)
-                });
+                sheet['!cols'] = widths;
             }
 
-            detailSheet['!cols'] = columnWidths;
-
-            XLSX.utils.book_append_sheet(
-                workbook,
-                detailSheet,
-                'Detail Status'
-            );
+            XLSX.utils.book_append_sheet(workbook, sheet, 'Detail Status');
         }
 
-        const tanggal =
-            $('#tanggalStatus').val()
-                .replaceAll(' ', '_')
-                .replaceAll('/', '-');
+        const tanggal = $('#tanggalStatus').val().replaceAll(' ', '_').replaceAll('/', '-');
+        const aggregation = $('#aggregation').val();
+        const shift = $('#shift').val();
 
         XLSX.writeFile(
             workbook,
-            `Detail Status Fuel Truck_${tanggal}.xlsx`
+            `Detail_Status_Fuel_Truck_${tanggal}_${shift}_${aggregation}.xlsx`
         );
     });
-
 </script>

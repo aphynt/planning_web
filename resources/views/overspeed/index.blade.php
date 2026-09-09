@@ -136,11 +136,12 @@
                                         <th rowspan="2">No</th>
                                         <th rowspan="2">Unit ID</th>
                                         <th rowspan="2">Waktu Kejadian</th>
+                                        <th rowspan="2">Shift</th>
                                         <th colspan="2">Speed</th>
                                         <th rowspan="2">Lokasi</th>
-                                        <th rowspan="2">Longitude</th>
+                                        {{-- <th rowspan="2">Longitude</th>
                                         <th rowspan="2">Latitude</th>
-                                        <th rowspan="2">Altitude</th>
+                                        <th rowspan="2">Altitude</th> --}}
                                         <th colspan="2">Operator</th>
                                     </tr>
                                     <tr>
@@ -407,6 +408,9 @@
                     }
                 },
                 {
+                    data: 'OPR_SHIFTNO'
+                },
+                {
                     data: 'VHC_SPEED',
                     render: function(data) {
                         return parseFloat(
@@ -478,27 +482,27 @@
                     },
                     defaultContent: '-'
                 },
-                {
-                    data: 'GPS_LON',
-                    render: function(data) {
-                        if (data == null || data === '') return '';
-                        return Number(data).toFixed(6);
-                    }
-                },
-                {
-                    data: 'GPS_LAT',
-                    render: function(data) {
-                        if (data == null || data === '') return '';
-                        return Number(data).toFixed(6);
-                    }
-                },
-                {
-                    data: 'GPS_ALT',
-                    render: function(data) {
-                        if (data == null || data === '') return '';
-                        return Number(data).toFixed(2);
-                    }
-                },
+                // {
+                //     data: 'GPS_LON',
+                //     render: function(data) {
+                //         if (data == null || data === '') return '';
+                //         return Number(data).toFixed(6);
+                //     }
+                // },
+                // {
+                //     data: 'GPS_LAT',
+                //     render: function(data) {
+                //         if (data == null || data === '') return '';
+                //         return Number(data).toFixed(6);
+                //     }
+                // },
+                // {
+                //     data: 'GPS_ALT',
+                //     render: function(data) {
+                //         if (data == null || data === '') return '';
+                //         return Number(data).toFixed(2);
+                //     }
+                // },
                 {
                     data: 'OPR_NRP',
                     defaultContent: ''
