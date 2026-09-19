@@ -63,16 +63,16 @@ class OverspeedController extends Controller
         if ($shift == '6') {
 
             $shiftCondition = "
-                AND CAST(GPS_TIMESTAMP AS TIME) >= '07:00:00'
-                AND CAST(GPS_TIMESTAMP AS TIME) < '19:00:00'
+                AND CAST(OPR_REPORTTIME AS TIME) >= '07:00:00'
+                AND CAST(OPR_REPORTTIME AS TIME) < '19:00:00'
             ";
 
         } elseif ($shift == '7') {
 
             $shiftCondition = "
                 AND (
-                    CAST(GPS_TIMESTAMP AS TIME) >= '19:00:00'
-                    OR CAST(GPS_TIMESTAMP AS TIME) < '07:00:00'
+                    CAST(OPR_REPORTTIME AS TIME) >= '19:00:00'
+                    OR CAST(OPR_REPORTTIME AS TIME) < '07:00:00'
                 )
             ";
         }
@@ -100,24 +100,33 @@ class OverspeedController extends Controller
                     VHC_ID,
                     OPR_NRP,
                     OPR_NAME,
-                    GPS_TIMESTAMP,
+                    OPR_REPORTTIME,
                     (GPS_SPEED - 5) AS GPS_SPEED,
                     LOC_NAME,
                     GPS_LON,
                     GPS_LAT,
                     GPS_ALT,
-                    DATEDIFF(SECOND,
-                        LAG(GPS_TIMESTAMP, 1) OVER (PARTITION BY VHC_ID ORDER BY GPS_TIMESTAMP),
-                        GPS_TIMESTAMP
+
+                    DATEDIFF(
+                        SECOND,
+                        LAG(OPR_REPORTTIME, 1) OVER (
+                            PARTITION BY VHC_ID
+                            ORDER BY OPR_REPORTTIME
+                        ),
+                        OPR_REPORTTIME
                     ) AS GAP_SEC
+
                 FROM [FOCUS_REPORTING].[dbo].[TRK_LOG_OVERSPEED_TEMP]
+
                 WHERE (GPS_SPEED - 5) > 41
                 AND (GPS_SPEED - 5) <= 70
                 AND VHC_ID LIKE 'FT%'
                 AND LOC_NAME IS NOT NULL
                 AND LTRIM(RTRIM(LOC_NAME)) <> ''
-                AND GPS_TIMESTAMP >= :filterStart
-                AND GPS_TIMESTAMP < :filterEnd
+
+                AND OPR_REPORTTIME >= :filterStart
+                AND OPR_REPORTTIME < :filterEnd
+
                 {$shiftCondition}
                 {$searchCondition}
             ),
@@ -126,14 +135,23 @@ class OverspeedController extends Controller
                     VHC_ID,
                     OPR_NRP,
                     OPR_NAME,
-                    GPS_TIMESTAMP,
+                    OPR_REPORTTIME,
                     GPS_SPEED,
                     LOC_NAME,
                     GPS_LON,
                     GPS_LAT,
                     GPS_ALT,
-                    SUM(CASE WHEN GAP_SEC IS NULL OR GAP_SEC > 2 THEN 1 ELSE 0 END)
-                        OVER (PARTITION BY VHC_ID ORDER BY GPS_TIMESTAMP) AS EVENT_GROUP_ID
+
+                    SUM(
+                        CASE
+                            WHEN GAP_SEC IS NULL OR GAP_SEC > 2 THEN 1
+                            ELSE 0
+                        END
+                    ) OVER (
+                        PARTITION BY VHC_ID
+                        ORDER BY OPR_REPORTTIME
+                    ) AS EVENT_GROUP_ID
+
                 FROM FilteredData
             ),
             RankedEvents AS (
@@ -141,17 +159,19 @@ class OverspeedController extends Controller
                     VHC_ID,
                     OPR_NRP,
                     OPR_NAME,
-                    GPS_TIMESTAMP,
+                    OPR_REPORTTIME,
                     GPS_SPEED,
                     LOC_NAME,
                     GPS_LON,
                     GPS_LAT,
                     GPS_ALT,
                     EVENT_GROUP_ID,
+
                     ROW_NUMBER() OVER (
                         PARTITION BY VHC_ID, EVENT_GROUP_ID
-                        ORDER BY GPS_SPEED DESC, GPS_TIMESTAMP ASC
+                        ORDER BY GPS_SPEED DESC, OPR_REPORTTIME ASC
                     ) AS RN_PEAK_SPEED
+
                 FROM GroupedEvents
             ),
             EventSummary AS (
@@ -160,17 +180,31 @@ class OverspeedController extends Controller
                     OPR_NRP,
                     OPR_NAME,
                     EVENT_GROUP_ID,
-                    MIN(GPS_TIMESTAMP) AS START_TIME,
-                    MAX(GPS_TIMESTAMP) AS END_TIME,
-                    DATEDIFF(SECOND, MIN(GPS_TIMESTAMP), MAX(GPS_TIMESTAMP)) + 1 AS DURASI_DETIK,
+
+                    MIN(OPR_REPORTTIME) AS START_TIME,
+                    MAX(OPR_REPORTTIME) AS END_TIME,
+
+                    DATEDIFF(
+                        SECOND,
+                        MIN(OPR_REPORTTIME),
+                        MAX(OPR_REPORTTIME)
+                    ) + 1 AS DURASI_DETIK,
+
                     ROUND(AVG(GPS_SPEED), 1) AS RATA_RATA_SPEED,
                     MAX(GPS_SPEED) AS MAX_SPEED,
+
                     MAX(CASE WHEN RN_PEAK_SPEED = 1 THEN LOC_NAME END) AS LOC_NAME,
                     MAX(CASE WHEN RN_PEAK_SPEED = 1 THEN GPS_LON END) AS GPS_LON,
                     MAX(CASE WHEN RN_PEAK_SPEED = 1 THEN GPS_LAT END) AS GPS_LAT,
                     MAX(CASE WHEN RN_PEAK_SPEED = 1 THEN GPS_ALT END) AS GPS_ALT
+
                 FROM RankedEvents
-                GROUP BY VHC_ID, OPR_NRP, OPR_NAME, EVENT_GROUP_ID
+
+                GROUP BY
+                    VHC_ID,
+                    OPR_NRP,
+                    OPR_NAME,
+                    EVENT_GROUP_ID
             )
             SELECT
                 ROW_NUMBER() OVER (ORDER BY START_TIME DESC) AS ID,

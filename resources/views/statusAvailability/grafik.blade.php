@@ -107,6 +107,7 @@
                             <div class="col-6 col-md-1 mb-2">
                                 <label for="shift">Shift</label>
                                 <select class="form-select" name="shift" id="shift">
+                                    <option value="Semua">All Shift</option>
                                     <option value="6" selected>Siang</option>
                                     <option value="7">Malam</option>
                                 </select>

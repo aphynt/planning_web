@@ -49,7 +49,8 @@ class StatusAvailabilityController extends Controller
         $vhc_id       = $request->input('vhc_id');
 
         if (empty($tanggalInput)) {
-            $startDate = Carbon::today()->format('Y-m-d');
+            $operationalDate = Carbon::now()->subHours(7)->format('Y-m-d');
+            $startDate = $operationalDate;
             $endDate   = $startDate;
         } else {
             if (str_contains($tanggalInput, 'to')) {
@@ -71,64 +72,46 @@ class StatusAvailabilityController extends Controller
             $dayCount = 1;
         }
 
-        if (!empty($shift) && $shift != 'Semua') {
-            if ($shift == '6') {
-                $reportStart = Carbon::parse(
-                    $startDate . ' 07:00:00'
-                );
-                $reportEnd = Carbon::parse(
-                    $endDate . ' 19:00:00'
-                );
-                $query->where(function ($q) use ($reportStart, $reportEnd) {
-                    $q->where(
-                        'A.OPR_ENDTIME',
-                        '>',
-                        $reportStart
-                    )
-                    ->where(
-                        'A.OPR_REPORTTIME',
-                        '<',
-                        $reportEnd
-                    );
-                });
-            }
+        if ($shift == '6') {
+            $reportStart = Carbon::parse(
+                $startDate . ' 07:00:00'
+            );
 
-            elseif ($shift == '7') {
-                $reportStart = Carbon::parse(
-                    $startDate . ' 19:00:00'
-                );
+            $reportEnd = Carbon::parse(
+                $endDate . ' 19:00:00'
+            );
 
-                $reportEnd = Carbon::parse(
-                    $endDate . ' 07:00:00'
-                )->addDay();
+        } elseif ($shift == '7') {
+            $reportStart = Carbon::parse(
+                $startDate . ' 19:00:00'
+            );
 
-                $query->where(function ($q) use ($reportStart, $reportEnd) {
-
-                    $q->where(
-                        'A.OPR_ENDTIME',
-                        '>',
-                        $reportStart
-                    )
-                    ->where(
-                        'A.OPR_REPORTTIME',
-                        '<',
-                        $reportEnd
-                    );
-                });
-            }
+            $reportEnd = Carbon::parse(
+                $endDate . ' 07:00:00'
+            )->addDay();
 
         } else {
             $reportStart = Carbon::parse(
-                $startDate . ' 00:00:00'
+                $startDate . ' 07:00:00'
             );
+
             $reportEnd = Carbon::parse(
-                $endDate . ' 23:59:59'
-            );
-            $query->whereBetween(
-                'A.OPR_REPORTTIME',
-                [$reportStart, $reportEnd]
-            );
+                $endDate . ' 07:00:00'
+            )->addDay();
         }
+
+        $query->where(function ($q) use ($reportStart, $reportEnd) {
+            $q->where(
+                'A.OPR_ENDTIME',
+                '>',
+                $reportStart
+            )
+            ->where(
+                'A.OPR_REPORTTIME',
+                '<',
+                $reportEnd
+            );
+        });
         if (!empty($vhc_id) && $vhc_id != 'Semua') {
             $query->where(
                 'A.VHC_ID',
@@ -162,7 +145,7 @@ class StatusAvailabilityController extends Controller
                 $now
             );
         }
-        $data = $query
+        $vwData = $query
             ->orderBy('A.VHC_ID')
             ->orderBy('A.OPR_REPORTTIME')
             ->get();
@@ -201,6 +184,38 @@ class StatusAvailabilityController extends Controller
             })
             ->values();
 
+        $allUnitIds = $units
+            ->pluck('id')
+            ->values();
+
+        $vwUnitIds = $vwData
+            ->pluck('VHC_ID')
+            ->unique()
+            ->values();
+
+        $missingUnitIds = $allUnitIds
+            ->diff($vwUnitIds)
+            ->values();
+
+        $trkData = collect();
+
+        if ($missingUnitIds->isNotEmpty()) {
+
+            $trkData = $this->getFallbackFromTrkLog(
+                $missingUnitIds->toArray(),
+                $reportStart,
+                $reportEnd
+            );
+        }
+
+        $data = $vwData
+            ->concat($trkData)
+            ->sortBy([
+                ['VHC_ID', 'asc'],
+                ['OPR_REPORTTIME', 'asc'],
+            ])
+            ->values();
+
         $statuses = [
             'Ready',
             'Standby',
@@ -209,6 +224,7 @@ class StatusAvailabilityController extends Controller
         ];
 
         $hours = [];
+
         if ($shift == '7') {
             for ($i = 19; $i <= 23; $i++) {
                 $nextHour = ($i + 1) % 24;
@@ -218,6 +234,7 @@ class StatusAvailabilityController extends Controller
                     $nextHour
                 );
             }
+
             for ($i = 0; $i <= 6; $i++) {
                 $nextHour = $i + 1;
                 $hours[] = sprintf(
@@ -227,8 +244,27 @@ class StatusAvailabilityController extends Controller
                 );
             }
 
-        } else {
+        } elseif ($shift == '6') {
             for ($i = 7; $i <= 18; $i++) {
+                $nextHour = $i + 1;
+                $hours[] = sprintf(
+                    '%02d-%02d',
+                    $i,
+                    $nextHour
+                );
+            }
+
+        } else {
+            for ($i = 7; $i <= 23; $i++) {
+                $nextHour = ($i + 1) % 24;
+                $hours[] = sprintf(
+                    '%02d-%02d',
+                    $i,
+                    $nextHour
+                );
+            }
+
+            for ($i = 0; $i <= 6; $i++) {
                 $nextHour = $i + 1;
                 $hours[] = sprintf(
                     '%02d-%02d',
@@ -241,45 +277,38 @@ class StatusAvailabilityController extends Controller
             $shiftStart = Carbon::parse(
                 $startDate . ' 19:00:00'
             );
+
             $shiftEnd = Carbon::parse(
                 $startDate . ' 07:00:00'
             )->addDay();
+
+        } elseif ($shift == '6') {
+            $shiftStart = Carbon::parse(
+                $startDate . ' 07:00:00'
+            );
+
+            $shiftEnd = Carbon::parse(
+                $startDate . ' 19:00:00'
+            );
 
         } else {
             $shiftStart = Carbon::parse(
                 $startDate . ' 07:00:00'
             );
+
             $shiftEnd = Carbon::parse(
-                $startDate . ' 19:00:00'
-            );
+                $startDate . ' 07:00:00'
+            )->addDay();
         }
-        $effectiveShiftEnd = $shiftEnd->copy();
-        if ($now->betweenIncluded(
-            $shiftStart,
-            $shiftEnd
-        )) {
-            $effectiveShiftEnd = $now->copy();
-        } elseif ($now->lt($shiftStart)) {
-            $effectiveShiftEnd = $shiftStart->copy();
-        }
-        if (
-            $now->betweenIncluded(
-                $shiftStart,
-                $shiftEnd
-            )
-        ) {
-            $currentHour = (int) $now->format('H');
-            $hours = array_values(
-                array_filter(
-                    $hours,
-                    function ($slot) use ($currentHour) {
-                        [$hourStart] = array_map(
-                            'intval',
-                            explode('-', $slot)
-                        );
-                        return $hourStart <= $currentHour;
-                    }
-                )
+        if ($now->betweenIncluded($shiftStart, $shiftEnd)) {
+            $elapsedMinutes = $shiftStart->diffInMinutes($now);
+            $visibleSlots = (int) floor($elapsedMinutes / 60) + 1;
+            $visibleSlots = max(1, min(count($hours), $visibleSlots));
+
+            $hours = array_slice(
+                $hours,
+                0,
+                $visibleSlots
             );
         }
 
@@ -327,7 +356,7 @@ class StatusAvailabilityController extends Controller
                     $currentDate . ' 07:00:00'
                 )->addDay();
 
-            } else {
+            } elseif ($shift == '6') {
                 $dailyShiftStart = Carbon::parse(
                     $currentDate . ' 07:00:00'
                 );
@@ -335,6 +364,15 @@ class StatusAvailabilityController extends Controller
                 $dailyShiftEnd = Carbon::parse(
                     $currentDate . ' 19:00:00'
                 );
+
+            } else {
+                $dailyShiftStart = Carbon::parse(
+                    $currentDate . ' 07:00:00'
+                );
+
+                $dailyShiftEnd = Carbon::parse(
+                    $currentDate . ' 07:00:00'
+                )->addDay();
             }
 
             if ($now->lt($dailyShiftStart)) {
@@ -735,8 +773,11 @@ class StatusAvailabilityController extends Controller
         }
 
         unset($unitsData, $duration);
+        $hoursPerDay = ($shift == 'Semua' || empty($shift))
+            ? 24
+            : 12;
 
-        $baseHours = $dayCount * 12;
+        $baseHours = $dayCount * $hoursPerDay;
         $averages = [];
         foreach ($statuses as $status) {
             foreach ($units as $unit) {
@@ -759,23 +800,6 @@ class StatusAvailabilityController extends Controller
 
         unset($statusesData, $unitsData, $duration);
 
-        // ============================================================
-        // CHART PIVOT
-        //
-        // Untuk grafik:
-        // 1 periode = 60 menit per unit.
-        //
-        // Jika tanggal yang dipilih lebih dari 1 hari, nilai per jam
-        // dinormalisasi terhadap jumlah hari agar setiap periode tetap
-        // maksimal 60 menit.
-        //
-        // Contoh:
-        // 2 hari, unit A Ready 100 menit pada 07-08
-        // => 100 / 2 = 50 menit rata-rata per periode.
-        //
-        // Data ini sengaja terpisah dari $pivot karena $pivot dipakai
-        // untuk perhitungan tabel/availability lainnya.
-        // ============================================================
         $chartPivot = [];
 
         foreach ($hours as $hour) {
@@ -789,9 +813,6 @@ class StatusAvailabilityController extends Controller
                     $totalMinutes =
                         $pivot[$hour][$status][$unitId] ?? 0;
 
-                    // $pivot pada titik ini sudah dalam satuan jam
-                    // (karena sebelumnya dibagi 60), sehingga dikali
-                    // 60 kembali untuk mendapatkan menit.
                     $minutes = $totalMinutes * 60;
 
                     $normalizedMinutes =
@@ -799,8 +820,6 @@ class StatusAvailabilityController extends Controller
                             ? $minutes / $dayCount
                             : 0;
 
-                    // Jaga agar satu unit dalam satu periode tidak
-                    // pernah melebihi 60 menit.
                     $chartPivot[$hour][$status][$unitId] =
                         round(
                             min(60, max(0, $normalizedMinutes)),
@@ -810,26 +829,13 @@ class StatusAvailabilityController extends Controller
             }
         }
 
-        // ============================================================
-        // CHART ALL UNIT
-        //
-        // ALL UNIT = rata-rata antar unit.
-        // Karena setiap unit mempunyai 60 menit/periode, maka hasil
-        // stack ALL UNIT juga tetap maksimal 60 menit.
-        // ============================================================
         $chartAverage = [];
-
         foreach ($hours as $hour) {
-
             foreach ($statuses as $status) {
-
                 $sum = 0;
                 $unitCount = count($units);
-
                 foreach ($units as $unit) {
-
                     $unitId = $unit['id'];
-
                     $sum +=
                         $chartPivot[$hour][$status][$unitId]
                         ?? 0;
@@ -847,16 +853,184 @@ class StatusAvailabilityController extends Controller
             'hours'         => $hours,
             'statuses'      => $statuses,
             'pivot'         => $pivot,
-
-            // Khusus grafik: 1 periode selalu 60 menit/unit.
             'chartPivot'    => $chartPivot,
-
-            // Khusus "Semua Unit": rata-rata semua unit.
             'chartAverage'  => $chartAverage,
-
             'totals'        => $totals,
             'averages'      => $averages,
             'dayCount'      => $dayCount
         ]);
+    }
+
+    private function getFallbackFromTrkLog(
+        array $unitIds,
+        Carbon $reportStart,
+        Carbon $reportEnd
+    ) {
+        if (empty($unitIds)) {
+            return collect();
+        }
+
+        $lookbackStart = $reportStart
+            ->copy()
+            ->subMinutes(10);
+
+        $placeholders = implode(
+            ',',
+            array_fill(0, count($unitIds), '?')
+        );
+
+        $sql = "
+            WITH RawData AS
+            (
+                SELECT
+                    T.VHC_ID,
+                    T.OPR_REPORTTIME,
+                    T.VSA_GROUPID,
+
+                    CASE
+                        WHEN
+                            LAG(
+                                ISNULL(T.VSA_GROUPID, -999)
+                            ) OVER (
+                                PARTITION BY T.VHC_ID
+                                ORDER BY T.OPR_REPORTTIME
+                            )
+                            =
+                            ISNULL(T.VSA_GROUPID, -999)
+
+                        THEN 0
+                        ELSE 1
+                    END AS IS_NEW_GROUP
+
+                FROM FOCUS_REPORTING.dbo.VW_TRK_LOG T
+
+                WHERE T.VHC_TYPEID = 5
+
+                AND T.VHC_ID IN ({$placeholders})
+
+                AND T.OPR_REPORTTIME >= ?
+                AND T.OPR_REPORTTIME < ?
+            ),
+
+            GroupedData AS
+            (
+                SELECT
+                    VHC_ID,
+                    OPR_REPORTTIME,
+                    VSA_GROUPID,
+
+                    SUM(IS_NEW_GROUP) OVER (
+                        PARTITION BY VHC_ID
+                        ORDER BY OPR_REPORTTIME
+                        ROWS UNBOUNDED PRECEDING
+                    ) AS GROUP_ID
+
+                FROM RawData
+            ),
+
+            StatusSummary AS
+            (
+                SELECT
+                    VHC_ID,
+                    VSA_GROUPID,
+                    GROUP_ID,
+
+                    MIN(OPR_REPORTTIME) AS START_TIME,
+                    MAX(OPR_REPORTTIME) AS LAST_TIME
+
+                FROM GroupedData
+
+                GROUP BY
+                    VHC_ID,
+                    VSA_GROUPID,
+                    GROUP_ID
+            ),
+
+            StatusInterval AS
+            (
+                SELECT
+                    VHC_ID,
+                    VSA_GROUPID,
+                    START_TIME,
+                    LAST_TIME,
+
+                    LEAD(START_TIME) OVER (
+                        PARTITION BY VHC_ID
+                        ORDER BY START_TIME
+                    ) AS NEXT_START_TIME
+
+                FROM StatusSummary
+            ),
+
+            FinalInterval AS
+            (
+                SELECT
+                    VHC_ID,
+                    VSA_GROUPID,
+                    START_TIME AS OPR_REPORTTIME,
+
+                    CASE
+                        WHEN NEXT_START_TIME IS NOT NULL
+                            THEN NEXT_START_TIME
+                        ELSE DATEADD(
+                            SECOND,
+                            1,
+                            LAST_TIME
+                        )
+                    END AS OPR_ENDTIME
+
+                FROM StatusInterval
+            )
+
+            SELECT
+                A.VHC_ID,
+
+                A.OPR_REPORTTIME,
+                A.OPR_ENDTIME,
+
+                COALESCE(
+                    B.VSA_GROUPDESC,
+                    'Standby'
+                ) AS VSA_GROUPDESC,
+
+                DATEDIFF_BIG(
+                    SECOND,
+                    A.OPR_REPORTTIME,
+                    A.OPR_ENDTIME
+                ) / 60.0 AS DURATION
+
+            FROM FinalInterval A
+
+            LEFT JOIN dbo.FLT_VSAGROUP B
+                ON A.VSA_GROUPID = B.VSA_GROUPID
+
+            WHERE A.OPR_ENDTIME > ?
+            AND A.OPR_REPORTTIME < ?
+
+            ORDER BY
+                A.VHC_ID,
+                A.OPR_REPORTTIME
+        ";
+
+        $bindings = [];
+
+        foreach ($unitIds as $unitId) {
+            $bindings[] = $unitId;
+        }
+
+        $bindings[] = $lookbackStart->format('Y-m-d H:i:s');
+        $bindings[] = $reportEnd->format('Y-m-d H:i:s');
+
+        // Filter final
+        $bindings[] = $reportStart->format('Y-m-d H:i:s');
+        $bindings[] = $reportEnd->format('Y-m-d H:i:s');
+
+        $results = DB::connection('focus')
+            ->select(
+                $sql,
+                $bindings
+            );
+
+        return collect($results);
     }
 }
