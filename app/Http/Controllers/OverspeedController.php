@@ -119,7 +119,7 @@ class OverspeedController extends Controller
                 FROM [FOCUS_REPORTING].[dbo].[TRK_LOG_OVERSPEED_TEMP]
 
                 WHERE (GPS_SPEED - 5) > 41
-                AND (GPS_SPEED - 5) <= 70
+                AND (GPS_SPEED - 5) <= 80
                 AND VHC_ID LIKE 'FT%'
                 AND LOC_NAME IS NOT NULL
                 AND LTRIM(RTRIM(LOC_NAME)) <> ''

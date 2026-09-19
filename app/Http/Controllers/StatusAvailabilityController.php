@@ -161,6 +161,8 @@ class StatusAvailabilityController extends Controller
             ->where('A.VHC_ACTIVE', 1)
             ->select([
                 'A.VHC_ID',
+                'A.OPR_NAME',
+                'A.LOC_NAME',
                 DB::raw(
                     "COALESCE(B.VSA_GROUPDESC, 'Ready') AS STATUS"
                 )
@@ -171,6 +173,7 @@ class StatusAvailabilityController extends Controller
                 $vhc_id
             );
         }
+
         $units = $unitQuery
             ->orderBy('A.VHC_ID')
             ->get()
@@ -178,7 +181,9 @@ class StatusAvailabilityController extends Controller
 
                 return [
                     'id'     => $unit->VHC_ID,
-                    'status' => $unit->STATUS ?? 'Ready'
+                    'status' => $unit->STATUS ?? 'Ready',
+                    'opr_name' => $unit->OPR_NAME ?? null,
+                    'loc_name' => $unit->LOC_NAME ?? null,
                 ];
 
             })

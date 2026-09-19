@@ -1003,10 +1003,26 @@
         `;
 
         res.units.forEach(function (unit) {
+
             let statusClass = getUnitStatusClass(unit.status);
 
+            const operatorName = unit.opr_name || '-';
+            const locationName = unit.loc_name || '-';
+
+            const tooltipText = `
+                Operator: ${operatorName}<br>
+                Lokasi Terakhir: ${locationName}
+            `;
+
             header += `
-                <th class="text-center ${statusClass}">
+                <th
+                    class="text-center ${statusClass}"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="top"
+                    data-bs-html="true"
+                    title="${tooltipText}"
+                    style="cursor:pointer;"
+                >
                     ${unit.id}
                 </th>
             `;
@@ -1017,6 +1033,10 @@
         `;
 
         $('#tblHeader').html(header);
+
+        document.querySelectorAll('#tblHeader [data-bs-toggle="tooltip"]').forEach(function (el) {
+            new bootstrap.Tooltip(el);
+        });
 
         buildBody(res);
     }
