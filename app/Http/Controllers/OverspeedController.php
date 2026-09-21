@@ -121,6 +121,7 @@ class OverspeedController extends Controller
                 WHERE (GPS_SPEED - 5) > 41
                 AND (GPS_SPEED - 5) <= 80
                 AND VHC_ID LIKE 'FT%'
+                AND ISNULL(GPS_STRENGTH, 0) > 2
                 AND LOC_NAME IS NOT NULL
                 AND LTRIM(RTRIM(LOC_NAME)) <> ''
 
