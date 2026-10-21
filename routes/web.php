@@ -36,17 +36,16 @@ Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
 Route::get('/download/p2h', function () {
+    $directory = storage_path('app/public/app/apk');
+    $files = glob($directory . '/*.{apk,APK}', GLOB_BRACE) ?: [];
 
-    $directory = storage_path('app/apk');
-    $files = glob($directory . '/*.apk');
-
-    // Periksa apakah file tersedia
     if (empty($files)) {
         return response()->json([
             'status' => 'error',
             'message' => 'File APK tidak ditemukan.',
         ], 404);
     }
+
     usort($files, function ($a, $b) {
         return filemtime($b) <=> filemtime($a);
     });
