@@ -182,4 +182,34 @@ Route::group(['middleware' => ['auth']], function(){
     Route::post('/mappingSOP/insert', [MappingSOPController::class, 'insert'])->name('mappingSOP.insert');
     Route::get('/mappingSOP/statusEnabled/{id}', [MappingSOPController::class, 'statusEnabled'])->name('mappingSOP.statusEnabled');
 
+    Route::get('/download/p2h', function () {
+
+        $directory = public_path('downloads');
+
+        $files = glob($directory . '/*.apk');
+
+        if (empty($files)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'File APK tidak ditemukan.',
+            ], 404);
+        }
+
+        usort($files, function ($a, $b) {
+            return filemtime($b) <=> filemtime($a);
+        });
+
+        $path = $files[0];
+
+        return response()->download(
+            $path,
+            basename($path),
+            [
+                'Content-Type' => 'application/vnd.android.package-archive',
+                'Cache-Control' => 'no-store',
+            ]
+        );
+
+    })->name('app.download');
+
 });
