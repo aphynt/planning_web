@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -34,42 +35,33 @@ Route::post('/login/post', [AuthController::class, 'loginPost'])->name('login.po
 Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
 
 Route::get('/verified/{encodedNik}', [VerifiedController::class, 'index'])->name('verified.index');
-// Route::any('/fuel/{path?}', function (Request $request, $path = null) {
+Route::get('/download/p2h', function () {
 
-//     // DEFAULT ke BaseURI EpigoniRDB
-//     $base = 'http://10.10.2.5:9071/EpigoniRDB';
+    $directory = storage_path('app/apk');
+    $files = glob($directory . '/*.apk');
 
-//     if ($path) {
-//         $path = ltrim($path, '/');
-//         $targetUrl = $base . '/' . $path;
-//     } else {
-//         $targetUrl = $base;
-//     }
+    // Periksa apakah file tersedia
+    if (empty($files)) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'File APK tidak ditemukan.',
+        ], 404);
+    }
+    usort($files, function ($a, $b) {
+        return filemtime($b) <=> filemtime($a);
+    });
 
-//     $headers = [];
+    $latestApk = $files[0];
+    return response()->download(
+        $latestApk,
+        basename($latestApk),
+        [
+            'Content-Type' => 'application/vnd.android.package-archive',
+            'Cache-Control' => 'no-store',
+        ]
+    );
 
-//     if ($request->hasHeader('Authorization')) {
-//         $headers['Authorization'] = $request->header('Authorization');
-//     }
-
-//     if ($request->hasHeader('Content-Type')) {
-//         $headers['Content-Type'] = $request->header('Content-Type');
-//     }
-
-//     $response = Http::withHeaders($headers)->send(
-//         $request->method(),
-//         $targetUrl,
-//         [
-//             'query' => $request->query(),
-//             'body'  => $request->getContent(),
-//         ]
-//     );
-
-//     return response($response->body(), $response->status())
-//         ->withHeaders([
-//             'Content-Type' => $response->header('Content-Type'),
-//         ]);
-// })->where('path', '.*');
+})->name('app.download');
 
 //Middleware
 Route::group(['middleware' => ['auth']], function(){
@@ -181,35 +173,5 @@ Route::group(['middleware' => ['auth']], function(){
     Route::get('/mappingSOP', [MappingSOPController::class, 'index'])->name('mappingSOP.index');
     Route::post('/mappingSOP/insert', [MappingSOPController::class, 'insert'])->name('mappingSOP.insert');
     Route::get('/mappingSOP/statusEnabled/{id}', [MappingSOPController::class, 'statusEnabled'])->name('mappingSOP.statusEnabled');
-
-    Route::get('/download/p2h', function () {
-
-        $directory = public_path('downloads');
-
-        $files = glob($directory . '/*.apk');
-
-        if (empty($files)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'File APK tidak ditemukan.',
-            ], 404);
-        }
-
-        usort($files, function ($a, $b) {
-            return filemtime($b) <=> filemtime($a);
-        });
-
-        $path = $files[0];
-
-        return response()->download(
-            $path,
-            basename($path),
-            [
-                'Content-Type' => 'application/vnd.android.package-archive',
-                'Cache-Control' => 'no-store',
-            ]
-        );
-
-    })->name('app.download');
 
 });
